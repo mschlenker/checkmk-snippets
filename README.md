@@ -1,4 +1,4 @@
-# Snippets and examples for CheckMK
+# Snippets and examples for Checkmk
 
 Just a collection of snippets for Checkmk. These are either result of my paid work for tribe29 (the company behind Checkmk)
 or part of my work for servers I maintain. Or they might be made just out of curiosity. 
