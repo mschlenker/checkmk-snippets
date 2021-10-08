@@ -20,7 +20,7 @@ hello_world 90.24242012379389
 
 The package includes:
 
-- CheckMK side agent based check
+- Checkmk side agent based check
 - Configuration for editable thresholds
 - Definition of a graph
 - Definition of perf-o-meter
