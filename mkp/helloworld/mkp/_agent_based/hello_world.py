@@ -31,7 +31,7 @@ def check_hello_world(params, section):
         # Everyone loves perf-o-meters, so take the next step and build one!
         #
         # ~/local/share/check_mk/web/plugins/perfometer/helloworld_perfometer.py
-	yield Metric(name="hellolevel", value=float(line[1]), boundaries=(0.0, 100.0))
+        yield Metric(name="hellolevel", value=float(line[1]), boundaries=(0.0, 100.0))
         
         # Two very simple transitions, both are not hardcoded.
         # Here we have to cast the string received to float. To cast, use a function
@@ -63,9 +63,9 @@ register.check_plugin(
     check_function = check_hello_world,
     # Refer to the ruleset defined in:
     # ~/local/share/check_mk/web/plugins/wato/helloworld_parameters.py
-    check_ruleset_name = "hellothresholds",
-    check_default_parameters = {}
+    check_ruleset_name = "hello_world",
+    # check_default_parameters = {}
     # if defaults have to be defined here, use:
-    # check_default_parameters = { "levels" : (80.0, 90.0) }
+    check_default_parameters = { "levels" : (80.0, 90.0) }
 )
 

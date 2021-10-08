@@ -36,22 +36,21 @@ from cmk.gui.plugins.wato import (
 def _parameter_valuespec_helloworld_levels():
     return Dictionary(
         elements=[
-            ("levels",
-             Tuple(
-                 title=_("Levels"),
-                 elements=[
-                     Percentage(
-                         title=_("Warning at"),
-                         default_value=80.0,
-                     ),
-                     Percentage(
-                         title=_("Critical at"),
-                         default_value=90.0,
-                     ),
-                 ],
-             )),
+            ("levels", Tuple(
+                title=_("Levels"),
+                elements=[
+                    Percentage(
+                        title=_("Warning at"),
+                        default_value=80.0,
+                    ),
+                    Percentage(
+                        title=_("Critical at"),
+                        default_value=90.0,
+                    ),
+                ],
+            )),
         ],
-        required_keys=['levels'],  # There is only one value, so its required
+        # required_keys=['levels'],  # There is only one value, so its required
     )
 
 # Create a rulespec to be used in your agent based plugin:
@@ -62,8 +61,8 @@ def _parameter_valuespec_helloworld_levels():
 
 rulespec_registry.register(
     CheckParameterRulespecWithoutItem(
-	# as defined in your check in share/check_mk/checks/
-        check_group_name = "hellothresholds",
+        # as defined in your check in share/check_mk/checks/
+        check_group_name = "hello_world",
         group = RulespecGroupCheckParametersOperatingSystem,
         match_type = "dict",
         # the function above to issue default parameters

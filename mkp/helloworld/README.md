@@ -2,7 +2,7 @@
 
 This is a very basic plugin that can be used as template for your own 
 plugin development. It should be complete enough to fulfill the requirements 
-of the CheckMK exchange.
+of the Checkmk exchange.
 
 Besides this it can be used to create some noise for testing purposes.
 
