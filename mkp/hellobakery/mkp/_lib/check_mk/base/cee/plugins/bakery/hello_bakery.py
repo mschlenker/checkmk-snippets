@@ -42,7 +42,8 @@ def get_hello_bakery_plugin_files(conf: HelloBakeryConfig) -> FileGenerator:
    interval = conf.get('interval')
 
    # Source file with this name is taken from local/share/check_mk/agents/plugins/
-   # It will be installed as that name to /usr/lib/check_mk_agent/plugins/<number>/
+   # It will be installed as that name to /usr/lib/check_mk_agent/plugins/<interval>/
+   # or to /usr/lib/check_mk_agent/plugins/ (if synchronous call is requested)
    # on the target system.
    yield Plugin(
       base_os=OS.LINUX,
@@ -50,21 +51,32 @@ def get_hello_bakery_plugin_files(conf: HelloBakeryConfig) -> FileGenerator:
       target=Path('hello_bakery'),
       interval=interval,
    )
-
+   
+   # This example skips an agent plugins for SunOS systems. If unsure whether
+   # Python is present, you might want to add a Korn shell script instead:
+   #
+   #yield Plugin(
+   #   base_os=OS.SOLARIS,
+   #   source=Path('hello_bakery.solaris.ksh'),
+   #   target=Path('hello_bakery'),
+   #   interval=interval,
+   #)
+   
    # Put an config file to the list that is used for Linux systems:
    # Switch of the banner, since it uses hash as comment.
    yield PluginConfig(base_os=OS.LINUX,
                      lines=_get_linux_cfg_lines(conf['user'], conf['content']),
                      target=Path('hello_bakery.json'),
                      include_header=False)
-
+   
    # Put a config file to the list for SunOS systems:
-   # Here we build a config file that can be sourced as shell snippet, so 
-   # we can include the banner:
-   yield PluginConfig(base_os=OS.SOLARIS,
-                     lines=_get_solaris_cfg_lines(conf['user'], conf['content']),
-                     target=Path('hello_bakery.cfg'),
-                     include_header=True)
+   # If we build a config file that can be sourced as shell snippet, we can
+   # keep the banner:
+   #
+   #yield PluginConfig(base_os=OS.SOLARIS,
+   #                  lines=_get_solaris_cfg_lines(conf['user'], conf['content']),
+   #                  target=Path('hello_bakery.cfg'),
+   #                  include_header=True)
 
 def _get_linux_cfg_lines(user: str, content: str) -> List[str]:
    # Let's assume that our Linux example plugin uses json as a config format
