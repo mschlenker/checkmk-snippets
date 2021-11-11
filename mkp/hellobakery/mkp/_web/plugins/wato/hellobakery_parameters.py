@@ -4,10 +4,11 @@
 # License: GNU General Public License v2
 #
 # Reference for details:
-# https://docs.checkmk.com/latest/en/devel_check_plugins.html
+# https://docs.checkmk.com/latest/en/devel_check_plugins.html#_threshold_information
 #
-# This file contains the configuration defaults for our "Hello world!" example
-# plus hooks to display and alter these defaults in the setup GUI.
+# This file contains the configuration defaults on the Checkmk side for our
+# "Hello bakery!" example, plus hooks to display and alter the thresholds for
+# CRIT and WARN in the setup GUI.
 
 # Import localization:
 

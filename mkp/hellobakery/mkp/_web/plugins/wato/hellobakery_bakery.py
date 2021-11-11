@@ -4,7 +4,7 @@
 # License: GNU General Public License v2
 #
 # Reference for details:
-# https://docs.checkmk.com/latest/en/bakery_api.html
+# https://docs.checkmk.com/latest/en/bakery_api.html#ruleset
 #
 # This is the setup GUI for our "Hello bakery!" plugin. It defines the parameters that
 # can be defined using the GUI and that will eventually be written to the configuration
