@@ -3,6 +3,9 @@
 # Start Firefox in a large dummy display to be able to get high resolution
 # screenshots.
 
+# Dependencies:
+# sudo apt-get install xfce4-terminal xterm rxvt-unicode x11vnc xvfb xfwm4 openbox
+
 # Other suggestions: xterm, xfce4-terminal
 TERMINAL=urxvt
 # Alternative suggestions: openbox, i3, fluxbox, twm, icewm
