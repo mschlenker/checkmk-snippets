@@ -39,6 +39,8 @@ class HelloBakeryConfig(TypedDict, total=False):
    content: str
 
 def get_hello_bakery_plugin_files(conf: HelloBakeryConfig) -> FileGenerator:
+   # In some cases you may want to override user input here to ensure a minimal
+   # interval!
    interval = conf.get('interval')
 
    # Source file with this name is taken from local/share/check_mk/agents/plugins/
@@ -62,6 +64,14 @@ def get_hello_bakery_plugin_files(conf: HelloBakeryConfig) -> FileGenerator:
    #   interval=interval,
    #)
    
+   # Install a CMD file for Windows (CMD/BAT are recommended defaults):
+   yield Plugin(
+      base_os=OS.WINDOWS,
+      source=Path('hello_bakery.cmd'),
+      target=Path('hello_bakery.cmd'),
+      interval=interval,
+   )
+   
    # Put an config file to the list that is used for Linux systems:
    # Switch of the banner, since it uses hash as comment.
    yield PluginConfig(base_os=OS.LINUX,
@@ -77,6 +87,17 @@ def get_hello_bakery_plugin_files(conf: HelloBakeryConfig) -> FileGenerator:
    #                  lines=_get_solaris_cfg_lines(conf['user'], conf['content']),
    #                  target=Path('hello_bakery.cfg'),
    #                  include_header=True)
+
+   # In some cases the agent needs to be accompagnied by a binary. This dumps
+   # the binary mentioned to the default binary directionary (typally /usr/bin
+   # and registers the file with the package manager.
+   #
+   #for base_os in [OS.LINUX]:
+   #   yield SystemBinary(
+   #      base_os=base_os,
+   #      source=Path('some_binary'),
+   #   )
+
 
 def _get_linux_cfg_lines(user: str, content: str) -> List[str]:
    # Let's assume that our Linux example plugin uses json as a config format
@@ -111,8 +132,9 @@ def get_hello_bakery_scriptlets(conf: HelloBakeryConfig) -> ScriptletGenerator:
    yield Scriptlet(step=SolStep.POSTINSTALL, lines=installed_lines)
    yield Scriptlet(step=SolStep.POSTREMOVE, lines=uninstalled_lines)
 
-# Just because wre can we will also write a windows config. To prevent bloat,
-# we skip Windows binaries in this example.
+# Just because wre can we will also write a windows config. In contrast to
+# Unices, Windows configuration is kept in a centralized file, not in
+# individual files for each plugin.
 
 def get_hello_bakery_windows_config(conf: HelloBakeryConfig) -> WindowsConfigGenerator:
    yield WindowsConfigEntry(path=["hello_bakery", "user"], content=conf["user"])
