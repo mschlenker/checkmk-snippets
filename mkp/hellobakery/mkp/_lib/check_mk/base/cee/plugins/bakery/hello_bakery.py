@@ -64,11 +64,11 @@ def get_hello_bakery_plugin_files(conf: HelloBakeryConfig) -> FileGenerator:
    #   interval=interval,
    #)
    
-   # Install a CMD file for Windows (CMD/BAT are recommended defaults):
+   # Install a CMD file for Windows (BAT/PS/VMS are recommended defaults):
    yield Plugin(
       base_os=OS.WINDOWS,
       source=Path('hello_bakery.cmd'),
-      target=Path('hello_bakery.cmd'),
+      target=Path('hello_bakery.bat'),
       interval=interval,
    )
    
