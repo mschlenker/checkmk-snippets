@@ -8,7 +8,7 @@ Enterprise Edition only!
 
 ## Contents
 
-A Python script for the agent side that outputs "hello_world" and a
+A Python script for the agent side that outputs "hello_bakery" and a
 random number between 0.0 and 100.0, the CheckMK side sends WARN and 
 CRIT when thresholds of 80.0 or 90.0 are reached (so expect a 
 notification roughly every 5 minutes.
@@ -24,6 +24,8 @@ user johndoe
 The package includes:
 
 - Checkmk side agent based check
+- Linux agent plugin
+- Windows agent plugin
 - Configuration for editable thresholds
 - Definition of a graph
 - Definition of perf-o-meter
