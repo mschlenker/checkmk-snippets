@@ -22,14 +22,18 @@ sleep 3
 DISPLAY=${DPNUM} ${TERMINAL} &
 DISPLAY=${DPNUM} firefox -P ${FFPROFILE} -no-remote &
 # Might be redundant, I don't care...
-DISPLAY=${DPNUM} x11vnc -loop -display ${DPNUM} &
+DISPLAY=${DPNUM} x11vnc -localhost -loop -display ${DPNUM} &
 DISPLAY=${DPNUM} ${WINMANAGER} &
 
 # Start xfsettingsd here if needed. You can configure the appearance (icons,
 # theme, colors, fonts) with xfce4-settings-manager 
 
 # Now use any usable VNC viewer to access the desktop. I suggest Remmina,
-# since this allows scaling. 
+# since this allows scaling. Connect to:
+#
+# localhost:0
+#
+# In rare occassions the display number might be different.
 #
 # To take screenshots you can run in any terminal:
 #
