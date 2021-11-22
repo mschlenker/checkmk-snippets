@@ -7,41 +7,37 @@ distribution:
 description:
  "Hello bakery!" is an example package primarily built for the purpose
  of showcasing minimal contents of a valid, usable package that can
- be uploaded to the CheckMK exchange. In comparison to "Hello world!"
+ be uploaded to the Checkmk exchange. In comparison to "Hello world!"
  it extends the structure to bakery API plugin files that allow for
- distribution of this package to clients. The full example also allows
+ distribution of this package to hosts. The full example also allows
  for writing configuration files that include parameters set by agent
  rules and using post install or pre remove hooks.
 
  Expected agent output:
 
  <<<hello_bakery>>>
- 
  hello_bakery 57.746
 
- The float is expected to be in the range between 0% and 100%. The
- sample agent relies on these four lines Python, store it as
- /usr/lib/check_mk_agent/plugins/helloworld and make sure it is 
- set executable. 
+ The float is expected to be in the range between 0% and 100%. 
+ The Linux agent relies on the following four lines Python.
+ Store it as /usr/lib/check_mk_agent/plugins/hello_bakery and make 
+ sure it is set executable. 
 
  Minimal sample agent script:
 
  #!/usr/bin/env python3
- 
  from random import random
- 
  print("<<<hello_bakery>>>")
- 
  print("hello_bakery", random() * 100.0)
 
- Please see the example in usr/lib/check_mk_agent/plugins/hello_world for
+ Please see the example in /usr/lib/check_mk_agent/plugins/hello_bakery for
  our extended script that also reads the config and outputs one of the
- parameters configured via setup GUI. This "full" script will be passed to
+ parameters configured via Setup GUI. This "full" script will be passed to
  Linux clients in the baked DEB or RPM packages.
 
- In default settings, above 80% "hellolevel" the state changes from
- OK -> WARNING, issueing the message "Hello, I need some coffee!",
+ In default settings, above 80% "hellobakerylevel" the state changes to
+ WARN, issueing the message "Hello, I need some coffee!",
  above 90%, the state will be CRIT "Hello, leave me alone!".  
  
  Feel free to use the files contained in this MKP as a foundation for
- your first proper CheckMK plugin. Have fun!
+ your first proper Checkmk plugin. Have fun!

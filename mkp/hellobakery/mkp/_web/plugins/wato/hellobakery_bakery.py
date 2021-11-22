@@ -6,9 +6,9 @@
 # Reference for details:
 # https://docs.checkmk.com/latest/en/bakery_api.html#ruleset
 #
-# This is the setup GUI for our "Hello bakery!" plugin. It defines the parameters that
+# This is the Setup GUI for our "Hello bakery!" plugin. It defines the parameters that
 # can be defined using the GUI and that will eventually be written to the configuration
-# on the client running the agent.
+# on the host running the agent.
 
 from cmk.gui.i18n import _
 from cmk.gui.plugins.wato import (

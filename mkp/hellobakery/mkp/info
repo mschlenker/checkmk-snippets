@@ -1,8 +1,8 @@
 {'author': 'Mattias Schlenker',
  'description': 'Hello world example with added plugin for bakery. First '
                 'tinker around with my "Hello world!" MKP, then have a look at '
-                'the added files to distribute agent ckeck and configuration '
-                'via the agent bakery. Enterprise Editions only!\n',
+                'the added files to distribute agent check and configuration '
+                'via the agent bakery. Checkmk Enterprise Editions only!\n',
  'download_url': 'https://github.com/mschlenker/checkmk-snippets/tree/main/mkp/hellobakery',
  'files': {'agent_based': ['hello_bakery.py'],
            'agents': ['plugins/hello_bakery',
