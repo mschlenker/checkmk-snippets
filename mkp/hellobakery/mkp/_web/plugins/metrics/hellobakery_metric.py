@@ -4,17 +4,17 @@
 # License: GNU General Public License v2
 #
 # Reference for details:
-# https://docs.checkmk.com/latest/en/devel_check_plugins.html
+# https://docs.checkmk.com/latest/en/devel_check_plugins.html#ownmetricdefinitions
 #
-# Here we define the metrics for the graph of our "Hello World!" Plugin
+# Here we define the metrics for the graph.
 
 # Import everything of relevance
 from cmk.gui.i18n import _
 from cmk.gui.plugins.metrics import metric_info
 
-metric_info["hellobakelevel"] = {
+metric_info["hellobakerylevel"] = {
     # Set a title, use _() to allow translations
-    "title": _("Hello world level"),
+    "title": _("Hello bakery! level"),
     # Set the unit: Percentage has clear borders
     "unit": "%",
     # Choose a color that isn't red/yellow/green 

@@ -4,15 +4,14 @@
 # License: GNU General Public License v2
 #
 # Reference for details:
-# https://docs.checkmk.com/latest/en/devel_check_plugins.html#_including_the_command_in_the_agent
+# https://docs.checkmk.com/latest/en/devel_check_plugins.html#includecommand
 #
+# This is the Checkmk agent side script
+# /usr/lib/check_mk_agent/plugins/hello_bakery
 #
-# This is the agent/client side script for a "Hello World!" Plugin for CheckMK 2.0
-#
-# usr/lib/check_mk_agent/plugins/hello_world
-#
-# For our "Hello bakery!" example we extended it to read a JSON config file and
-# also output the configured user name that was set by agent plugin rules.
+# For our "Hello bakery!" example we extended the "Hello world!" script to read 
+# a JSON configuration file and also output the configured user name that was
+# set by agent plugin rules.
 
 from random import random
 import json

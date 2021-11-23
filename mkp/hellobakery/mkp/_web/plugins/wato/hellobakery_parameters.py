@@ -4,11 +4,11 @@
 # License: GNU General Public License v2
 #
 # Reference for details:
-# https://docs.checkmk.com/latest/en/devel_check_plugins.html#_threshold_information
+# https://docs.checkmk.com/latest/en/devel_check_plugins.html#thresholdinformation
 #
-# This file contains the configuration defaults on the Checkmk side for our
+# This file contains the configuration defaults on the Checkmk server side for our
 # "Hello bakery!" example, plus hooks to display and alter the thresholds for
-# CRIT and WARN in the setup GUI.
+# CRIT and WARN in the Setup GUI.
 
 # Import localization:
 
@@ -28,10 +28,10 @@ from cmk.gui.plugins.wato import (
 )
 
 # Create a function that returns a tuple containing default thresholds,
-# the title may be an arbitary string, this serves three tasks:
+# The title may be an arbitary string, this serves three tasks:
 # 1. Define reasonable defaults
-# 2. Provide an entry field with proper range and label for the setup
-# 3. Create a dictionary passed to the agent based plugin, either using
+# 2. Provide an entry field with proper range and label for the Setup
+# 3. Create a dictionary passed to the agent-based plugin, either using
 #    defaults or the overriden values 
 
 def _parameter_valuespec_hellobakery_levels():
@@ -54,10 +54,10 @@ def _parameter_valuespec_hellobakery_levels():
         # required_keys=['levels'],  # There is only one value, so its required
     )
 
-# Create a rulespec to be used in your agent based plugin:
+# Create a rulespec to be used in your agent-based plugin:
 #
 # CheckParameterRulespecWithoutItem - skip the item: 
-# check_helloworld(params, section):
+# check_hello_bakery(params, section):
 # If more than one value is to be checked, you probably would use the item
 
 rulespec_registry.register(

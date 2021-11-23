@@ -6,8 +6,8 @@
 # Reference for details:
 # https://docs.checkmk.com/latest/en/bakery_api.html
 #
-# This file defines which files (binaries and configuration) will be added to
-# to a checkmk-agent that is assembled with the agent bakery.
+# This file defines which files (binaries and configuration) will be added
+# to a Checkmk agent that is assembled with the agent bakery.
 
 import json
 from pathlib import Path
@@ -43,9 +43,9 @@ def get_hello_bakery_plugin_files(conf: HelloBakeryConfig) -> FileGenerator:
    # interval!
    interval = conf.get('interval')
 
-   # Source file with this name is taken from local/share/check_mk/agents/plugins/
-   # It will be installed as that name to /usr/lib/check_mk_agent/plugins/<interval>/
-   # or to /usr/lib/check_mk_agent/plugins/ (if synchronous call is requested)
+   # Source file with this name is taken from ~/local/share/check_mk/agents/plugins/
+   # It will be installed under this name in /usr/lib/check_mk_agent/plugins/<interval>/
+   # or in /usr/lib/check_mk_agent/plugins/ (if synchronous call is requested)
    # on the target system.
    yield Plugin(
       base_os=OS.LINUX,
@@ -54,7 +54,7 @@ def get_hello_bakery_plugin_files(conf: HelloBakeryConfig) -> FileGenerator:
       interval=interval,
    )
    
-   # This example skips an agent plugins for SunOS systems. If unsure whether
+   # This example skips an agent plugin for Solaris systems. If unsure whether
    # Python is present, you might want to add a Korn shell script instead:
    #
    #yield Plugin(
@@ -72,15 +72,15 @@ def get_hello_bakery_plugin_files(conf: HelloBakeryConfig) -> FileGenerator:
       interval=interval,
    )
    
-   # Put an config file to the list that is used for Linux systems:
+   # Put a configuration file to the list for Linux systems:
    # Switch of the banner, since it uses hash as comment.
    yield PluginConfig(base_os=OS.LINUX,
                      lines=_get_linux_cfg_lines(conf['user'], conf['content']),
                      target=Path('hello_bakery.json'),
                      include_header=False)
    
-   # Put a config file to the list for SunOS systems:
-   # If we build a config file that can be sourced as shell snippet, we can
+   # Put a configuration file to the list for Solaris systems:
+   # If we build a configuration file that can be sourced as shell snippet, we can
    # keep the banner:
    #
    #yield PluginConfig(base_os=OS.SOLARIS,
@@ -88,8 +88,8 @@ def get_hello_bakery_plugin_files(conf: HelloBakeryConfig) -> FileGenerator:
    #                  target=Path('hello_bakery.cfg'),
    #                  include_header=True)
 
-   # In some cases the agent needs to be accompagnied by a binary. This dumps
-   # the binary mentioned to the default binary directionary (typally /usr/bin
+   # In some cases the agent needs to be accompanied by a binary. This dumps
+   # the binary mentioned to the default binary directionary (typically /usr/bin)
    # and registers the file with the package manager.
    #
    #for base_os in [OS.LINUX]:
@@ -100,7 +100,7 @@ def get_hello_bakery_plugin_files(conf: HelloBakeryConfig) -> FileGenerator:
 
 
 def _get_linux_cfg_lines(user: str, content: str) -> List[str]:
-   # Let's assume that our Linux example plugin uses json as a config format
+   # Let's assume that our Linux example plugin uses JSON as configuration file format
    config = json.dumps({'user': user, 'content': content})
    return config.split('\n')
 
@@ -112,12 +112,12 @@ def _get_solaris_cfg_lines(user: str, content: str) -> List[str]:
    ]
 
 # Depending on your preference you might wanna use pickle to dump the config
-# or write plain CSV... It's all up too you. Just make sure that config files
+# or write plain CSV... It's all up to you. Just make sure that configuration files
 # are always treated as an array of lines.
 
 # And now for the scriptlets. In Debian based distributions, postinst/prerm etc.
-# are files on their own. In RPM based systems all scriptlets are section in a
-# larger file. For SunOS IDK. Since each agent plugin has it's own few lines and
+# are files on their own. In RPM based systems all scriptlets are sections in a
+# larger file. For Solaris IDK. Since each agent plugin has it's own few lines and
 # the plugin in general also has some to restart the job, everything will be
 # concatenated.
 
@@ -132,7 +132,7 @@ def get_hello_bakery_scriptlets(conf: HelloBakeryConfig) -> ScriptletGenerator:
    yield Scriptlet(step=SolStep.POSTINSTALL, lines=installed_lines)
    yield Scriptlet(step=SolStep.POSTREMOVE, lines=uninstalled_lines)
 
-# Just because wre can we will also write a windows config. In contrast to
+# Just because we can we will also write a Windows configuration. In contrast to
 # Unices, Windows configuration is kept in a centralized file, not in
 # individual files for each plugin.
 

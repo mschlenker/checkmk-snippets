@@ -4,15 +4,14 @@
 # License: GNU General Public License v2
 #
 # Reference for details:
-# https://docs.checkmk.com/latest/en/devel_check_plugins.html
+# https://docs.checkmk.com/latest/en/devel_check_plugins.html#perfometer
 #
-# Configuration for a simple perf-o-meter that displays percentage
+# Configuration for a simple perf-o-meter that displays percentage values.
 
 from cmk.gui.plugins.metrics import perfometer_info
 
-
 # Just create the most simple perf-o-meter displaying only one linear value.
-# We use the variable "hellolevel" as reference. Since output ranges from 0
+# We use the variable "hellobakerylevel" as reference. Since output ranges from 0
 # to 100 we just use the full range.
 
 perfometer_info.append({
