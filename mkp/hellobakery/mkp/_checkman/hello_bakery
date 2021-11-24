@@ -20,8 +20,9 @@ description:
 
  The float is expected to be in the range between 0% and 100%. 
  The Linux agent relies on the following four lines Python.
- Store it as /usr/lib/check_mk_agent/plugins/hello_bakery and make 
- sure it is set executable. 
+ Without bakery support, store it as 
+ /usr/lib/check_mk_agent/plugins/hello_bakery and make sure it is set
+ executable.
 
  Minimal sample agent script:
 

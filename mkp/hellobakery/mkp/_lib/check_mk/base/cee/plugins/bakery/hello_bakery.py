@@ -115,11 +115,16 @@ def _get_solaris_cfg_lines(user: str, content: str) -> List[str]:
 # or write plain CSV... It's all up to you. Just make sure that configuration files
 # are always treated as an array of lines.
 
-# And now for the scriptlets. In Debian based distributions, postinst/prerm etc.
-# are files on their own. In RPM based systems all scriptlets are sections in a
-# larger file. For Solaris IDK. Since each agent plugin has it's own few lines and
-# the plugin in general also has some to restart the job, everything will be
-# concatenated.
+# And now for the scriptlets. In Debian based distributions and Solaris, postinst/
+# prerm etc. are files on their own. In RPM based systems all scriptlets are sections
+# in a larger file. Since each agent plugin has it's own few lines and the plugin in
+# general also has some to restart the job, everything will be concatenated.
+
+# Here be dragons: DO NOT issue "exit 0" as last line in your postinst/prerm etc. 
+# files since the lines of all plugins that are included are concatenated and trailed
+# by the package management scripts that belong to the agent itself. Also never modify
+# the environment in a way that might break following scripts. If you have to change
+# directory, save the current directory as olddir=`pwd` and change back as last line.
 
 def get_hello_bakery_scriptlets(conf: HelloBakeryConfig) -> ScriptletGenerator:
    installed_lines = ['logger -p Checkmk_Agent "Installed hello_bakery"']

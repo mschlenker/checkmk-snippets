@@ -51,4 +51,3 @@ rulespec_registry.register(
         name="agent_config:hello_bakery",
         valuespec=_valuespec_hello_bakery,
     ))
-

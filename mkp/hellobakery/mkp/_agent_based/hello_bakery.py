@@ -51,7 +51,7 @@ def check_hello_bakery(params, section):
 # Default parameters can be left empty since defined elsewhere.
 
 register.check_plugin(
-    # This is some unique identifier! Do not use dumb terms like "hello_world" or
+    # This is some unique identifier! Do not use too generic terms like "hello_world" or
     # "updates_pending" since someone else might have had your idea and your and his 
     # or hers output is not parseable by your discovery/check function and vice versa! 
     name = "hello_bakery",

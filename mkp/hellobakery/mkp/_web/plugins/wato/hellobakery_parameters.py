@@ -62,7 +62,8 @@ def _parameter_valuespec_hellobakery_levels():
 
 rulespec_registry.register(
     CheckParameterRulespecWithoutItem(
-        # as defined in your check in share/check_mk/checks/
+        # as defined as check_ruleset_name in your agent-based script on
+        # Checkmk server side in share/check_mk/checks/:
         check_group_name = "hello_bakery",
         group = RulespecGroupCheckParametersOperatingSystem,
         match_type = "dict",
@@ -70,4 +71,3 @@ rulespec_registry.register(
         parameter_valuespec = _parameter_valuespec_hellobakery_levels,
         title=lambda: _("Morning mood for hello world"),
     ))
-

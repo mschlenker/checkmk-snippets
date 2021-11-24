@@ -34,4 +34,3 @@ print("<<<hello_bakery>>>")
 
 print("hello_bakery", random() * 100.0) 
 print("user", cfg['user'])
-

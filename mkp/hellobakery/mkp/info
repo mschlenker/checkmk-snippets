@@ -17,7 +17,7 @@
  'name': 'hello_bakery',
  'num_files': 10,
  'title': 'Hello bakery!',
- 'version': '0.1.5',
+ 'version': '0.1.6',
  'version.min_required': '2.0.0',
  'version.packaged': '2.0.0p14',
  'version.usable_until': '2.1.999'}
