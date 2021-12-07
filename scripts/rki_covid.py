@@ -45,6 +45,9 @@ for (k, v) in coviddata.items():
 			if len(sys.argv) < 2:
 				print(c['properties']['county'])
 			elif sys.argv[1] == c['properties']['county']:
+				print('<<<check_mk>>>')
+				print('Version: 2.0.0')
+				print('AgentOS: noOS')
 				print('<<<rki_covid19>>>')
 				# print('county ' + c['properties']['county'])
 				print('cases7_per_100k ' + str(c['properties']['cases7_per_100k']))
