@@ -235,6 +235,7 @@ fi
 
 # First run
 
+apt install qemu-system-x86 qemu 
 qemu-system-x86_64 -enable-kvm -smp cpus="$CPUS" -m "$MEM" -drive \
 	file="${TARGETDIR}"/disk.img,if=virtio,format=raw \
 	$NET \
