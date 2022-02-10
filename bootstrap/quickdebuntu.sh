@@ -79,7 +79,7 @@ if [ -x "${TARGETDIR}/${CFG}" ] ; then
 	. "${TARGETDIR}/${CFG}"
 else
 	echo "Creating config: ${TARGETDIR}/config.sh..."
-	lines=`grep -n 'SNIP HERE' "$0" | awk -F ':' '{print $0}' `
+	lines=`grep -n 'SNIP HERE' "$0" | head -n 1 | awk -F ':' '{print $0}' `
 	mkdir -p "${TARGETDIR}"
 	head -n $lines "$0" | sed  's/^TARGETDIR/# TARGETDIR/g' > "${TARGETDIR}/config.sh"
 	chmod +x "${TARGETDIR}/config.sh"
