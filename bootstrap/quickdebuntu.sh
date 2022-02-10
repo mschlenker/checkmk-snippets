@@ -23,6 +23,8 @@ SSHKEYS="/home/mattias/.ssh/id_ecdsa.pub"
 NAMESERVER=8.8.8.8
 HOSTNAME="throwawaybian"
 EXTRADEBS="apache2"
+ADDUSER="" # "karlheinz" If non-empty a user will be added.
+ROOTPW=0 # Set to 1 to prompt for a root password
 
 # For running, please adjust!
 
@@ -68,7 +70,7 @@ if [ -x "${TARGETDIR}/${CFG}" ] ; then
 else
 	echo "Creating config: ${TARGETDIR}/config.sh..."
 	mkdir -p "${TARGETDIR}"
-	head -n 46 "$0" | sed  's/^TARGETDIR/# TARGETDIR/g' > "${TARGETDIR}/config.sh"
+	head -n 49 "$0" | sed  's/^TARGETDIR/# TARGETDIR/g' > "${TARGETDIR}/config.sh"
 	chmod +x "${TARGETDIR}/config.sh"
 fi
 
@@ -255,6 +257,22 @@ LABEL ubuntu
 
 EOF
 
+cat > "${TARGETDIR}/.target"/etc/rc.local << EOF
+#!/bin/bash
+
+ping -c 1 $NAMESERVER
+exit 0
+
+EOF
+
+	if [ -n "$ADDUSER" ] ; then
+		echo "Adding user $ADDUSER"
+		chroot "${TARGETDIR}/.target" adduser "$ADDUSER"
+	fi
+	if [ "$ROOTPW" -gt 0 ] ; then
+		echo "Adding a root password for console login"
+		chroot "${TARGETDIR}/.target" passwd
+	fi
 	for d in dev/pts dev sys proc boot ; do umount -f "${TARGETDIR}/.target"/$d ; done 
 	umount "${TARGETDIR}/.target"
 	dmsetup remove /dev/mapper/${freeloop#/dev/}p3
