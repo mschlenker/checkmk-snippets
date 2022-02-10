@@ -70,7 +70,10 @@ for tool in $neededtools ; do
 		exit 1
 	fi
 done
-
+if [ '!' -f "/home/mattias/.ssh/id_ecdsa.pub" ] ; then
+	echo "Missing SSH key, you would not be able to login."
+	exit 1
+fi
 # Create a hard disk and partition it:
 
 mkdir -p "${TARGETDIR}"
