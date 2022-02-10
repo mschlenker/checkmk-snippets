@@ -61,7 +61,7 @@ if [ "$UID" -gt 0 ] ; then
 	echo "Please run as root."
 	exit 1
 fi
-neededtools="extlinux parted dmsetup kpartx debootstrap mkfs.btrfs qemu-system-x86_64"
+neededtools="extlinux parted dmsetup kpartx debootstrap mkfs.btrfs qemu-system-x86_64 tunctl"
 for tool in $neededtools ; do
 	if which $tool > /dev/null ; then
 		echo "Found: $tool"
@@ -77,6 +77,20 @@ for key in $SSHKEYS ; do
 		exit 1
 	fi
 done
+
+if [ -f "${TARGETDIR}/qemu.pid" ] ; then
+	pids=`pidof qemu-system-x86_64 `
+	qpid=`cat "${TARGETDIR}/qemu.pid" `
+	for p in pids ; do
+		if [ "$p" -eq "$qpid" ] ; then
+			echo "Qemu already seems to be running. Please check."
+			echo "Remove ${TARGETDIR}/qemu.pid if ths was false alarm."
+			exit 1
+		fi
+	done
+fi
+
+
 # Create a hard disk and partition it:
 
 mkdir -p "${TARGETDIR}"
@@ -242,5 +256,8 @@ fi
 # apt install qemu-system-x86 qemu 
 qemu-system-x86_64 -enable-kvm -smp cpus="$CPUS" -m "$MEM" -drive \
 	file="${TARGETDIR}"/disk.img,if=virtio,format=raw \
+	-pidfile "${TARGETDIR}/qemu.pid"
 	$NET $DAEMONIZE $EXTRAS \
 	-vnc "$VNC"
+retval="$?"
+	
