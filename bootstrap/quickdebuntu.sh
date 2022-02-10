@@ -249,7 +249,8 @@ auto lo
 iface lo inet loopback
 
 # The primary network interface
-allow-hotplug eth0
+# allow-hotplug eth0
+auto eth0
 iface eth0 inet dhcp
 
 EOF
