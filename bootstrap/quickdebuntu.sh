@@ -46,6 +46,11 @@ NET="-net nic,model=e1000 -net user,hostfwd=tcp::8000-:80,hostfwd=tcp::2222-:22"
 #
 # quickdebuntu.sh /path/to/installation
 
+if [ -z "$TARGETDIR" ] ; then 
+	echo "Please specify a target directory."
+	exit 1
+fi
+
 CFG="config.sh"
 if [ -f "${TARGETDIR}" ] ; then 
 	# A file is specified, assume that this is a config file in the folder containing the VM"
@@ -55,7 +60,6 @@ if [ -f "${TARGETDIR}" ] ; then
 	TARGETDIR=` dirname  "${TARGETDIR}" `
 	echo "cfg file: $CFG"
 	echo "cfg dir: $TARGETDIR"
-	
 fi
 
 if [ -x "${TARGETDIR}/${CFG}" ] ; then
