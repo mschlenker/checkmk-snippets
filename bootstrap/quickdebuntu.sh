@@ -64,7 +64,7 @@ if [ -x "${TARGETDIR}/${CFG}" ] ; then
 else
 	echo "Creating config: ${TARGETDIR}/config.sh..."
 	mkdir -p "${TARGETDIR}"
-	head -n 46 "$0" > "${TARGETDIR}/config.sh"
+	head -n 46 "$0" | sed  's/^TARGETDIR/# TARGETDIR/g' > "${TARGETDIR}/config.sh"
 	chmod +x "${TARGETDIR}/config.sh"
 fi
 
