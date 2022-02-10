@@ -22,6 +22,7 @@ ROOTFS=btrfs
 SSHKEYS="/home/mattias/.ssh/id_ecdsa.pub"
 NAMESERVER=8.8.8.8
 HOSTNAME="throwawaybuntu"
+EXTRADEBS="apache2"
 
 # For running, please adjust!
 
@@ -181,7 +182,7 @@ EOF
 
 	chroot "${TARGETDIR}/.target" apt-get -y update
 	chroot "${TARGETDIR}/.target" apt-get -y install linux-image-generic openssh-server screen \
-		rsync btrfs-progs openntpd ifupdown net-tools syslinux-common extlinux 
+		rsync btrfs-progs openntpd ifupdown net-tools syslinux-common extlinux locales
 	chroot "${TARGETDIR}/.target" apt-get -y dist-upgrade
 	extlinux -i "${TARGETDIR}/.target/boot"
 	if [ -z "$UBUEDITION" ] ; then
@@ -189,7 +190,11 @@ EOF
 		initrd=` ls "${TARGETDIR}/.target/boot/" | grep initrd.img- | tail -n 1 `
 		ln -s $kernel "${TARGETDIR}/.target/boot/vmlinuz"
 		ln -s $initrd "${TARGETDIR}/.target/boot/initrd.img"
+		chroot "${TARGETDIR}/.target" locale-gen
 	fi
+	for d in $EXTRADEBS ; do
+		chroot "${TARGETDIR}/.target" apt-get -y install $d
+	done
 	rm "${TARGETDIR}/.target"/etc/resolv.conf
 	echo "nameserver $NAMESERVER" > "${TARGETDIR}/.target"/etc/resolv.conf
 	echo "$HOSTNAME" > "${TARGETDIR}/.target"/etc/hostname
