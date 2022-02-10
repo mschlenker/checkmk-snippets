@@ -21,7 +21,7 @@ ARCH=amd64
 ROOTFS=btrfs
 SSHKEYS="/home/mattias/.ssh/id_ecdsa.pub"
 NAMESERVER=8.8.8.8
-HOSTNAME="throwawaybuntu"
+HOSTNAME="throwawaybian"
 EXTRADEBS="apache2"
 
 # For running, please adjust!
