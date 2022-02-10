@@ -40,6 +40,14 @@ NET="-net nic,model=e1000 -net user,hostfwd=tcp::8000-:80,hostfwd=tcp::2222-:22"
 # exposed, if using Mattias' bridge script you have tap0 to tap9 available:
 # NET="-device virtio-net-pci,netdev=network3,mac=00:16:17:12:23:11 -netdev tap,id=network3,ifname=tap3,script=no,downscript=no"
 
+# network3 in both parameters is just an identifier to make qemu know, both 
+# parameters belong together. 
+#
+# tap3 is the name of the tap device the interface is bonded to. This has to
+# be unique for each virtual machine.
+#
+# The MAC address also has to be unique for each virtual machine!
+#
 # You might just snip the lines above and copy to the target dir than these
 # lines will be sourced, so you do not have to modify this script. Just run:
 #
@@ -47,6 +55,8 @@ NET="-net nic,model=e1000 -net user,hostfwd=tcp::8000-:80,hostfwd=tcp::2222-:22"
 # chmod a+x /path/to/installation/config.sh
 #
 # quickdebuntu.sh /path/to/installation
+#
+####################### SNIP HERE ############################################
 
 if [ -z "$TARGETDIR" ] ; then 
 	echo "Please specify a target directory."
@@ -69,8 +79,9 @@ if [ -x "${TARGETDIR}/${CFG}" ] ; then
 	. "${TARGETDIR}/${CFG}"
 else
 	echo "Creating config: ${TARGETDIR}/config.sh..."
+	linenum=`grep -n 'SNIP HERE' "$0" | awk -F ':' '{print $1}' `
 	mkdir -p "${TARGETDIR}"
-	head -n 49 "$0" | sed  's/^TARGETDIR/# TARGETDIR/g' > "${TARGETDIR}/config.sh"
+	head -n $linenum "$0" | sed  's/^TARGETDIR/# TARGETDIR/g' > "${TARGETDIR}/config.sh"
 	chmod +x "${TARGETDIR}/config.sh"
 fi
 
@@ -257,6 +268,10 @@ LABEL ubuntu
 
 EOF
 
+	# Tunneled devices are not seen from the outside until at least one outgoing
+	# packet has occured, so just ping the nameservers to make sure, hosts
+	# with static address configuration are seen from the outside.
+
 cat > "${TARGETDIR}/.target"/etc/rc.local << EOF
 #!/bin/bash
 
@@ -265,6 +280,7 @@ exit 0
 
 EOF
 
+	chmod 0755 "${TARGETDIR}/.target"/etc/rc.local
 	if [ -n "$ADDUSER" ] ; then
 		echo "Adding user $ADDUSER"
 		chroot "${TARGETDIR}/.target" adduser "$ADDUSER"
