@@ -179,7 +179,8 @@ deb http://deb.debian.org/debian-security/ ${DEBEDITION}-security main contrib n
 EOF
 	
 	fi
-
+	
+	chroot "${TARGETDIR}/.target" apt-get -y install ca-certificates
 	chroot "${TARGETDIR}/.target" apt-get -y update
 	chroot "${TARGETDIR}/.target" apt-get -y install linux-image-generic openssh-server screen \
 		rsync btrfs-progs openntpd ifupdown net-tools syslinux-common extlinux locales
