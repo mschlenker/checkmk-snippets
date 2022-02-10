@@ -78,19 +78,6 @@ for key in $SSHKEYS ; do
 	fi
 done
 
-if [ -f "${TARGETDIR}/qemu.pid" ] ; then
-	pids=`pidof qemu-system-x86_64 `
-	qpid=`cat "${TARGETDIR}/qemu.pid" `
-	for p in pids ; do
-		if [ "$p" -eq "$qpid" ] ; then
-			echo "Qemu already seems to be running. Please check."
-			echo "Remove ${TARGETDIR}/qemu.pid if ths was false alarm."
-			exit 1
-		fi
-	done
-fi
-
-
 # Create a hard disk and partition it:
 
 mkdir -p "${TARGETDIR}"
