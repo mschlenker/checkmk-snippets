@@ -70,6 +70,7 @@ for tool in extlinux parted dmsetup kpartx debootstrap ; do
 		missingtools="${tool} ${missingtools}"
 	fi
 done
+which mkfs.btrfs > /dev/null ||  missingtools="${missingtools} btrfs-progs"
 [ -z "$missingools" ] || apt install ${missingtools}
 if [ -z "$TARGETDIR" ] ; then
 	echo "Please specify a target directory."
