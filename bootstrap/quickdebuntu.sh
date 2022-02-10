@@ -76,7 +76,7 @@ for key in $SSHKEYS ; do
 		echo "Missing SSH key $key, you would not be able to login."
 		exit 1
 	fi
-fi
+done
 # Create a hard disk and partition it:
 
 mkdir -p "${TARGETDIR}"
