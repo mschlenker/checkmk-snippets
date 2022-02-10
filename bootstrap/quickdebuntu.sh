@@ -49,8 +49,13 @@ NET="-net nic,model=e1000 -net user,hostfwd=tcp::8000-:80,hostfwd=tcp::2222-:22"
 CFG="config.sh"
 if [ -f "${TARGETDIR}" ] ; then 
 	# A file is specified, assume that this is a config file in the folder containing the VM"
+	echo "File instead of directory given, splitting..."
+	chmod +x "${TARGETDIR}"
 	CFG=` basename  "${TARGETDIR}" `
 	TARGETDIR=` dirname  "${TARGETDIR}" `
+	echo "cfg file: $CFG"
+	echo "cfg dir: $TARGETDIR"
+	
 fi
 
 if [ -x "${TARGETDIR}/${CFG}" ] ; then
@@ -60,6 +65,7 @@ else
 	echo "Creating config: ${TARGETDIR}/config.sh..."
 	mkdir -p "${TARGETDIR}"
 	head -n 46 "$0" > "${TARGETDIR}/config.sh"
+	chmod +x "${TARGETDIR}/config.sh"
 fi
 
 UBUSERVER=http://archive.ubuntu.com/ubuntu
