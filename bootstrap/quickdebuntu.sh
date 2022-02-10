@@ -61,21 +61,15 @@ if [ "$UID" -gt 0 ] ; then
 	echo "Please run as root."
 	exit 1
 fi
-missingtools=""
-for tool in extlinux parted dmsetup kpartx debootstrap ; do
+neededtools="extlinux parted dmsetup kpartx debootstrap mkfs.btrfs"
+for tool in $neededtools ; do
 	if which $tool > /dev/null ; then
 		echo "Found: $tool"
 	else
-		echo "Missing: $tool"
-		missingtools="${tool} ${missingtools}"
+		echo "Missing: $tool, please install $neededtools"
+		exit 1
 	fi
 done
-which mkfs.btrfs > /dev/null ||  missingtools="${missingtools} btrfs-progs"
-[ -z "$missingools" ] || apt install ${missingtools}
-if [ -z "$TARGETDIR" ] ; then
-	echo "Please specify a target directory."
-	exit 1
-fi
 
 # Create a hard disk and partition it:
 
