@@ -256,7 +256,7 @@ fi
 # apt install qemu-system-x86 qemu 
 qemu-system-x86_64 -enable-kvm -smp cpus="$CPUS" -m "$MEM" -drive \
 	file="${TARGETDIR}"/disk.img,if=virtio,format=raw \
-	-pidfile "${TARGETDIR}/qemu.pid"
+	-pidfile "${TARGETDIR}/qemu.pid" \
 	$NET $DAEMONIZE $EXTRAS \
 	-vnc "$VNC"
 retval="$?"
