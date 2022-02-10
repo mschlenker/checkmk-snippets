@@ -61,7 +61,7 @@ if [ "$UID" -gt 0 ] ; then
 	echo "Please run as root."
 	exit 1
 fi
-neededtools="extlinux parted dmsetup kpartx debootstrap mkfs.btrfs"
+neededtools="extlinux parted dmsetup kpartx debootstrap mkfs.btrfs qemu-system-x86_64"
 for tool in $neededtools ; do
 	if which $tool > /dev/null ; then
 		echo "Found: $tool"
@@ -233,7 +233,7 @@ fi
 
 # First run
 
-apt install qemu-system-x86 qemu 
+# apt install qemu-system-x86 qemu 
 qemu-system-x86_64 -enable-kvm -smp cpus="$CPUS" -m "$MEM" -drive \
 	file="${TARGETDIR}"/disk.img,if=virtio,format=raw \
 	$NET $DAEMONIZE $EXTRAS \
