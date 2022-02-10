@@ -28,11 +28,14 @@ HOSTNAME="throwawaybuntu"
 CPUS=2
 MEM=2048
 VNC=":23"
+DAEMONIZE="-daemonize" # set to empty string to run in foreground
+EXTRAS="" # add additional CLI parameters
 # This redirects port 8000 on the local machine to 80 on the virtualized Ubuntu
 # and port 2222 to 22 on the Ubuntu. This is often sufficient for development:
 NET="-net nic,model=e1000 -net user,hostfwd=tcp::8000-:80,hostfwd=tcp::2222-:22"
 # This uses a real tun/tap bridge, use for stationary machines that should be
-# exposed: [TBD]
+# exposed, if using Mattias' bridge script you have tap0 to tap9 available:
+# NET="-device virtio-net-pci,netdev=network3,mac=00:16:17:12:23:11 -netdev tap,id=network3,ifname=tap3,script=no,downscript=no"
 
 # You might just snip the lines above and copy to the target dir than these
 # lines will be sourced, so you do not have to modify this script. Just run:
@@ -46,7 +49,7 @@ if [ -x "${TARGETDIR}/config.sh" ] ; then
 	. "${TARGETDIR}/config.sh"
 else
 	mkdir -p "${TARGETDIR}"
-	head -n 43 "$0" > "${TARGETDIR}/config.sh"
+	head -n 46 "$0" > "${TARGETDIR}/config.sh"
 fi
 
 UBUSERVER=http://archive.ubuntu.com/ubuntu
@@ -238,22 +241,5 @@ fi
 apt install qemu-system-x86 qemu 
 qemu-system-x86_64 -enable-kvm -smp cpus="$CPUS" -m "$MEM" -drive \
 	file="${TARGETDIR}"/disk.img,if=virtio,format=raw \
-	$NET \
+	$NET $DAEMONIZE $EXTRAS \
 	-vnc "$VNC"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
