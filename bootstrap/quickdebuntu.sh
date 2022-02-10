@@ -24,7 +24,7 @@ NAMESERVER=8.8.8.8
 HOSTNAME="throwawaybian"
 EXTRADEBS="apache2"
 ADDUSER="" # "karlheinz" If non-empty a user will be added.
-ROOTPW=0 # Set to 1 to prompt for a root password
+ROOTPASS=0 # Set to 1 to prompt for a root password
 
 # For running, please adjust!
 
@@ -269,7 +269,7 @@ EOF
 		echo "Adding user $ADDUSER"
 		chroot "${TARGETDIR}/.target" adduser "$ADDUSER"
 	fi
-	if [ "$ROOTPW" -gt 0 ] ; then
+	if [ "$ROOTPASS" -gt 0 ] ; then
 		echo "Adding a root password for console login"
 		chroot "${TARGETDIR}/.target" passwd
 	fi
