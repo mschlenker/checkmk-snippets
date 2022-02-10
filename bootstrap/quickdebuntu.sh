@@ -45,9 +45,18 @@ NET="-net nic,model=e1000 -net user,hostfwd=tcp::8000-:80,hostfwd=tcp::2222-:22"
 #
 # quickdebuntu.sh /path/to/installation
 
-if [ -x "${TARGETDIR}/config.sh" ] ; then
-	. "${TARGETDIR}/config.sh"
+CFG="config.sh"
+if [ -f "${TARGETDIR}" ] ; then 
+	# A file is specified, assume that this is a config file in the folder containing the VM"
+	CFG=` basename  "${TARGETDIR}" `
+	TARGETDIR=` dirname  "${TARGETDIR}" `
+fi
+
+if [ -x "${TARGETDIR}/${CFG}" ] ; then
+	echo "Found config: ${TARGETDIR}/${CFG}, sourcing it..."
+	. "${TARGETDIR}/${CFG}"
 else
+	echo "Creating config: ${TARGETDIR}/config.sh..."
 	mkdir -p "${TARGETDIR}"
 	head -n 46 "$0" > "${TARGETDIR}/config.sh"
 fi
@@ -247,4 +256,14 @@ qemu-system-x86_64 -enable-kvm -smp cpus="$CPUS" -m "$MEM" -drive \
 	$NET $DAEMONIZE $EXTRAS \
 	-vnc "$VNC"
 retval="$?"
-	
+if [ "$retval" -lt 1 ] ; then
+	echo "Successfully started, use"
+	echo ""
+	echo "    vncviewer localhost${VNC}"
+	echo ""
+	echo "to get a console."
+else 	
+	echo ""
+	echo "Ooopsi."
+	echo "Start failed, please check your configuration."
+fi
