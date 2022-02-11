@@ -25,6 +25,7 @@ HOSTNAME="throwawaybian"
 EXTRADEBS="apache2"
 ADDUSER="" # "karlheinz" If non-empty a user will be added.
 ROOTPASS=0 # Set to 1 to prompt for a root password
+PKGCACHE="" # Set to nonzero length directory name to enable caching of debs
 
 # For running, please adjust!
 
@@ -83,6 +84,14 @@ else
 	mkdir -p "${TARGETDIR}"
 	head -n $lines "$0" | sed  's/^TARGETDIR/# TARGETDIR/g' > "${TARGETDIR}/config.sh"
 	chmod +x "${TARGETDIR}/config.sh"
+fi
+
+if [ -n "$PKGCACHE" ]; then
+	if [ -n "$UBUEDITION" ] ; then
+		mkdir -p "${PKGCACHE}/ubuntu/archives"
+	else
+		mkdir -p "${PKGCACHE}/debian/archives"
+	fi
 fi
 
 UBUSERVER=http://archive.ubuntu.com/ubuntu
@@ -149,6 +158,20 @@ else
 	mkdir -p "${TARGETDIR}/.target/boot"
 	mount -o rw /dev/mapper/${freeloop#/dev/}p1 "${TARGETDIR}/.target/boot"
 	# This is the installation!
+	archivedir=""
+	if [ -n "$PKGCACHE" ]; then
+		if [ -n "$UBUEDITION" ] ; then
+			archivedir="${PKGCACHE}/ubuntu/archives"
+		else
+			archivedir="${PKGCACHE}/debian/archives"
+		fi
+	fi
+	mkdir -p "${TARGETDIR}/.target"/var/cache/apt/archives
+	if [ -n "$PKGCACHE" ]; then
+		mount --bind "$archivedir" "${TARGETDIR}/.target"/var/cache/apt/archives
+	else
+		mount -t tmpfs -o size=4G,mode=0755 tmpfs "${TARGETDIR}/.target"/var/cache/apt/archives
+	fi
 	if [ -n "$UBUEDITION" ] ; then
 		debootstrap --arch $ARCH $UBUEDITION "${TARGETDIR}/.target" $UBUSERVER
 	else
@@ -205,7 +228,7 @@ EOF
 	
 	chroot "${TARGETDIR}/.target" apt-get -y install ca-certificates
 	chroot "${TARGETDIR}/.target" apt-get -y update
-	chroot "${TARGETDIR}/.target" apt-get -y install linux-image-generic openssh-server screen \
+	chroot "${TARGETDIR}/.target" apt-get -y install screen linux-image-generic openssh-server \
 		rsync btrfs-progs openntpd ifupdown net-tools syslinux-common extlinux locales
 	chroot "${TARGETDIR}/.target" apt-get -y dist-upgrade
 	extlinux -i "${TARGETDIR}/.target/boot"
@@ -290,7 +313,7 @@ EOF
 		echo "Adding a root password for console login"
 		chroot "${TARGETDIR}/.target" passwd
 	fi
-	for d in dev/pts dev sys proc boot ; do umount -f "${TARGETDIR}/.target"/$d ; done 
+	for d in dev/pts dev sys proc boot var/cache/apt/archives ; do umount -f "${TARGETDIR}/.target"/$d ; done 
 	umount "${TARGETDIR}/.target"
 	dmsetup remove /dev/mapper/${freeloop#/dev/}p3
 	dmsetup remove /dev/mapper/${freeloop#/dev/}p2
