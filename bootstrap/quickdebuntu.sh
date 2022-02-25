@@ -15,6 +15,8 @@ TARGETDIR="$1"
 UBUEDITION="" # "focal"
 DEBEDITION="bullseye" # Takes precedence over Devuan
 DEVEDITION="chimaera" # Devuan is Debian without systemd
+# Make sure you have devootstrap scripts or install Devuan debootstrap
+# http://deb.devuan.org/devuan/pool/main/d/debootstrap/
 SYSSIZE=32 # Size of the system partition GB
 SWAPSIZE=2 # Size of swap GB
 BOOTSIZE=1 # Keep a small boot partition, 1GB is sufficient
@@ -234,6 +236,15 @@ deb http://deb.debian.org/debian-security/ ${DEBEDITION}-security main contrib n
 
 EOF
 	
+	else
+cat > "${TARGETDIR}/.target"/etc/apt/sources.list << EOF
+
+deb http://deb.devuan.org/merged ${DEVEDITION}          main
+deb http://deb.devuan.org/merged ${DEVEDITION}-updates  main
+deb http://deb.devuan.org/merged ${DEVEDITION}-security main
+	
+EOF
+
 	fi
 	# Devuan users shall manually adjust their sources.list, since they mix in matching Debian! 
 	
