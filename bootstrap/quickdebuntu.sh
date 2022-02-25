@@ -11,21 +11,25 @@
 # For building, please adjust! 
 
 TARGETDIR="$1"
-# Only specify one! If both are specified, Ubuntu will get precedence! Sorry, DEB folks.
+# Only specify one! If both are specified, Ubuntu will get precedence! Sorry, Debian folks.
 UBUEDITION="" # "focal"
-DEBEDITION="bullseye"
+DEBEDITION="bullseye" # Takes precedence over Devuan
+DEVEDITION="chimaera" # Devuan is Debian without systemd
 SYSSIZE=32 # Size of the system partition GB
 SWAPSIZE=2 # Size of swap GB
 BOOTSIZE=1 # Keep a small boot partition, 1GB is sufficient
 ARCH=amd64
-ROOTFS=btrfs
+ROOTFS=btrfs # You might choose ext4 or zfs (haven't tried)
 SSHKEYS="/home/${SUDO_USER}/.ssh/id_ecdsa.pub"
-NAMESERVER=8.8.8.8
+NAMESERVER=8.8.8.8 # Might or might not be overwritten later by DHCP.
 HOSTNAME="throwawaybian"
 EXTRADEBS="apache2"
-ADDUSER="" # "karlheinz" If non-empty a user will be added.
-ROOTPASS=0 # Set to 1 to prompt for a root password
+ADDUSER="" # "karlheinz" If non-empty a user will be added. This means interaction!
+ROOTPASS=0 # Set to 1 to prompt for a root password. This means interaction!
 PKGCACHE="" # Set to nonzero length directory name to enable caching of debs
+UBUSERVER="http://archive.ubuntu.com/ubuntu" # You might change to local mirror, but
+DEBSERVER="http://deb.debian.org/debian"     # this is less relevant when using caching!
+DEVSERVER="http://deb.devuan.org/merged"
 
 # For running, please adjust!
 
@@ -89,13 +93,15 @@ fi
 if [ -n "$PKGCACHE" ]; then
 	if [ -n "$UBUEDITION" ] ; then
 		mkdir -p "${PKGCACHE}/ubuntu/archives"
-	else
+	elif [ -n "$DEBEDITION" ] ; then
 		mkdir -p "${PKGCACHE}/debian/archives"
+	else
+		# Well that's not perfect, everything above the base
+		# system should be taken from matching Debian!
+		mkdir -p "${PKGCACHE}/devuan/archives"
 	fi
 fi
 
-UBUSERVER=http://archive.ubuntu.com/ubuntu
-DEBSERVER=http://deb.debian.org/debian
 DISKSIZE=$(( $SYSSIZE + $SWAPSIZE + $BOOTSIZE ))
 freeloop=""
 
@@ -162,8 +168,10 @@ else
 	if [ -n "$PKGCACHE" ]; then
 		if [ -n "$UBUEDITION" ] ; then
 			archivedir="${PKGCACHE}/ubuntu/archives"
-		else
+		elif [ -n "$DEBEDITION" ] ; then
 			archivedir="${PKGCACHE}/debian/archives"
+		else
+			archivedir="${PKGCACHE}/devuan/archives"
 		fi
 	fi
 	mkdir -p "${TARGETDIR}/.target"/var/cache/apt/archives
@@ -174,8 +182,10 @@ else
 	fi
 	if [ -n "$UBUEDITION" ] ; then
 		debootstrap --arch $ARCH $UBUEDITION "${TARGETDIR}/.target" $UBUSERVER
-	else
+	elif [ -n "$DEBEDITION" ] ; then
 		debootstrap --arch $ARCH $DEBEDITION "${TARGETDIR}/.target" $DEBSERVER
+	else
+		debootstrap --arch $ARCH $DEVEDITION "${TARGETDIR}/.target" $DEVSERVER
 	fi
 	mount -t proc none "${TARGETDIR}/.target"/proc
 	mount --bind /sys "${TARGETDIR}/.target"/sys
@@ -211,7 +221,7 @@ deb-src http://security.ubuntu.com/ubuntu ${UBUEDITION}-security multiverse
 
 EOF
 
-	else
+	elif [ -n "$DEBEDIDION" ] ; then
 
 cat > "${TARGETDIR}/.target"/etc/apt/sources.list << EOF
 
@@ -225,6 +235,7 @@ deb http://deb.debian.org/debian-security/ ${DEBEDITION}-security main contrib n
 EOF
 	
 	fi
+	# Devuan users shall manually adjust their sources.list, since they mix in matching Debian! 
 	
 	chroot "${TARGETDIR}/.target" apt-get -y install ca-certificates
 	chroot "${TARGETDIR}/.target" apt-get -y update
