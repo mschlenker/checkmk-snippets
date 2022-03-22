@@ -4,6 +4,20 @@
 // (C) 2022 Mattias Schlenker for tribe29 GmbH
 // Due to the libraries used, this code is licensed unter GPL V2
 
+// Agent output as follows, there is one section for a plugin (that yet has to be written)
+// and two local checks for which the state is calculated from eight thresholds defined in
+// constants below (CRIT/WARN, HI/LOW, temperature/humidity).
+/*
+<<<check_mk>>>
+AgentOS: arduino
+<<<dht_cmk_plugin>>>
+temp 21.60
+humidity 36.40
+<<<local:sep(0)>>>
+1 "DHT humidity" humidity=36.40 Humidity is a bit dry
+0 "DHT temperature" temperature=21.60 Temperature is comfortable
+*/
+
 // The file wifi_secrets.h in the same directory as this file contains the SSID and PSK, two
 // lines are enough. If you are not using version control you might just use these lines:
 // #define ESSID "mynetworkname"
@@ -20,7 +34,7 @@
 // Define some offsets. Since constantly polling the WiFi module warms it up, solutions
 // like the D1 mini shield might require higher offsets.  
 // Sensor offsets are typically +/- 2.5°C. 
-#define T_OFFSET 4.5 // sensor shows 5.5°C higher than real value
+#define T_OFFSET 4.5  // sensor shows 4.5°C higher than real value
 #define H_OFFSET -2.0 // Sensor shows 2.0% lower than real value 
 
 // Define some thresholds, these are taken from recommendations regarding office rooms, 
