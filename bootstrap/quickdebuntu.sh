@@ -11,15 +11,15 @@
 # For building, please adjust! 
 
 TARGETDIR="$1"
-# Only specify one! If both are specified, Ubuntu will get precedence! Sorry, Debian folks.
-UBUEDITION="" # "focal"
+# Only specify one of ! If two or more are specified, Ubuntu will get precedence! Sorry, Debian folks.
+UBUEDITION="jammy" # jammy: 22.04, impish: 21.10, focal: 20.04
 DEBEDITION="bullseye" # Takes precedence over Devuan
 DEVEDITION="chimaera" # Devuan is Debian without systemd
 # Make sure you have devootstrap scripts or install Devuan debootstrap
 # http://deb.devuan.org/devuan/pool/main/d/debootstrap/
 SYSSIZE=32 # Size of the system partition GB
 SWAPSIZE=2 # Size of swap GB
-BOOTSIZE=1 # Keep a small boot partition, 1GB is sufficient
+BOOTSIZE=2 # Keep a small boot partition, 2GB is sufficient for kernel, initrd and modules
 ARCH=amd64
 ROOTFS=btrfs # You might choose ext4 or zfs (haven't tried)
 SSHKEYS="/home/${SUDO_USER}/.ssh/id_ecdsa.pub"
@@ -161,10 +161,23 @@ else
 	mkdir -p "${TARGETDIR}/.target"
 	mkfs.ext4 /dev/mapper/${freeloop#/dev/}p1
 	mkfs.${ROOTFS} /dev/mapper/${freeloop#/dev/}p3
+	# When using btrfs create a subvolume _install and use as default to make versioning easier
+	MOUNTOPTS="defaults"
+	case ${ROOTFS} in 
+		btrfs)
+			mount -o rw /dev/mapper/${freeloop#/dev/}p3 "${TARGETDIR}/.target"
+			btrfs subvolume create "${TARGETDIR}/.target/_install"
+			umount /dev/mapper/${freeloop#/dev/}p3
+			MOUNTOPTS='subvol=_install'
+		;;
+	esac
 	mkswap /dev/mapper/${freeloop#/dev/}p2
-	mount -o rw /dev/mapper/${freeloop#/dev/}p3 "${TARGETDIR}/.target"
+	mount -o rw,"${MOUNTOPTS}" /dev/mapper/${freeloop#/dev/}p3 "${TARGETDIR}/.target"
 	mkdir -p "${TARGETDIR}/.target/boot"
 	mount -o rw /dev/mapper/${freeloop#/dev/}p1 "${TARGETDIR}/.target/boot"
+	mkdir -p "${TARGETDIR}/.target/boot/modules"
+	mkdir -p "${TARGETDIR}/.target/lib"
+	ln -s "/boot/modules ${TARGETDIR}/.target/lib/"
 	# This is the installation!
 	archivedir=""
 	if [ -n "$PKGCACHE" ]; then
@@ -280,7 +293,7 @@ EOF
 	UUID_ROOT=$ID_FS_UUID
 cat > "${TARGETDIR}/.target"/etc/fstab << EOF
 # <file system> <mount point>   <type>  <options>       <dump>  <pass>
-UUID=${UUID_ROOT} /               ${ROOTFS}   defaults 0       1
+UUID=${UUID_ROOT} /               ${ROOTFS}   ${MOUNTOPTS} 0       1
 UUID=${UUID_BOOT} /boot           ext4        defaults 0       0
 UUID=${UUID_SWAP} none            swap        sw       0       0
 
