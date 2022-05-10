@@ -18,8 +18,8 @@ DEVEDITION="chimaera" # Devuan is Debian without systemd
 # Make sure you have devootstrap scripts or install Devuan debootstrap
 # http://deb.devuan.org/devuan/pool/main/d/debootstrap/
 SYSSIZE=32 # Size of the system partition GB
-SWAPSIZE=2 # Size of swap GB
-BOOTSIZE=2 # Keep a small boot partition, 2GB is sufficient for kernel, initrd and modules
+SWAPSIZE=3 # Size of swap GB
+BOOTSIZE=3 # Keep a small boot partition, 3GB is sufficient for kernel, initrd and modules (twice)
 ARCH=amd64
 ROOTFS=btrfs # You might choose ext4 or zfs (haven't tried)
 SSHKEYS="/home/${SUDO_USER}/.ssh/id_ecdsa.pub"
