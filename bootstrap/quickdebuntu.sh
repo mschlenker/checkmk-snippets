@@ -177,7 +177,7 @@ else
 	mount -o rw /dev/mapper/${freeloop#/dev/}p1 "${TARGETDIR}/.target/boot"
 	mkdir -p "${TARGETDIR}/.target/boot/modules"
 	mkdir -p "${TARGETDIR}/.target/lib"
-	ln -s "/boot/modules ${TARGETDIR}/.target/lib/"
+	ln -s /boot/modules "${TARGETDIR}/.target/lib/modules"
 	# This is the installation!
 	archivedir=""
 	if [ -n "$PKGCACHE" ]; then
