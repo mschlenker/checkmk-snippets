@@ -325,7 +325,7 @@ PROMPT 1
 
 LABEL ubuntu
 	KERNEL /vmlinuz 
-	APPEND initrd=/initrd.img root=/dev/vda3 ro nosplash net.ifnames=0 biosdevname=0
+	APPEND initrd=/initrd.img root=/dev/vda3 ro nosplash rootflags=${MOUNTOPTS} net.ifnames=0 biosdevname=0
 
 EOF
 
