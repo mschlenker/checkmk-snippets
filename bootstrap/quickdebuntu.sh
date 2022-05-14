@@ -70,6 +70,11 @@ if [ -z "$TARGETDIR" ] ; then
 	exit 1
 fi
 
+if [ "$UID" -gt 0 ] ; then
+	echo "Please run as root."
+	exit 1
+fi
+
 CFG="config.sh"
 if [ -f "${TARGETDIR}" ] ; then 
 	# A file is specified, assume that this is a config file in the folder containing the VM"
@@ -107,29 +112,45 @@ fi
 DISKSIZE=$(( $SYSSIZE + $SWAPSIZE + $BOOTSIZE ))
 freeloop=""
 
-if [ "$UID" -gt 0 ] ; then
-	echo "Please run as root."
-	exit 1
-fi
+# If a file .bootstrap.success is present, assume installation was OK.
+# In this case do not check for tools:
 neededtools="extlinux parted dmsetup kpartx debootstrap mkfs.btrfs qemu-system-x86_64 tunctl"
-for tool in $neededtools ; do
-	if which $tool > /dev/null ; then
-		echo "Found: $tool"
+if [ -f "${TARGETDIR}/.bootstrap.success" ] ; then
+	echo "Found ${TARGETDIR}/.bootstrap.success, skipping checks"
+else
+	for tool in $neededtools ; do
+		if which $tool > /dev/null ; then
+			echo "Found: $tool"
+		else
+			echo "Missing: $tool, please install $neededtools"
+			exit 1
+		fi
+	done
+	for key in $SSHKEYS ; do
+		if [ '!' -f "$key" ] ; then
+			echo "Missing SSH key $key, you would not be able to login."
+			exit 1
+		fi
+	done
+	# Check whether using a fixed path really suits all Debian derivatives?
+	CODENAME=""
+	if [ -n "$UBUEDITION" ] ; then
+		CODENAME="$UBUEDITION"
+	elif [ -n "$DEBEDITION" ] ; then
+		CODENAME="$DEBEDITION"
 	else
-		echo "Missing: $tool, please install $neededtools"
+		CODENAME="$DEVEDITION"
+	fi
+	if [ -z "$CODENAME" ] ; then
+		echo "Please specify either UBUEDITION, DEBEDITION or DEVEDITION. Exiting."
 		exit 1
 	fi
-done
-
-for key in $SSHKEYS ; do
-	if [ '!' -f "$key" ] ; then
-		echo "Missing SSH key $key, you would not be able to login."
+	if [ '!' -f "/usr/share/debootstrap/scripts/${CODENAME}" ] ; then
+		echo "Bootstrap script missing for ${CODENAME}. Exiting."
 		exit 1
 	fi
-done
-
+fi
 # Create a hard disk and partition it:
-
 mkdir -p "${TARGETDIR}"
 if [ -f "${TARGETDIR}/disk.img" ] ; then
 	echo "Disk exists, skipping."
