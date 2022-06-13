@@ -70,6 +70,11 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				response.status = 200
 				response.content_type = "text/css"
 				response.body = $css
+			elsif File.exists?($basepath + path.sub(/^\/(de|en)\//, "/images/")) && path =~ /\.png$/
+				# FIXME: Serving images this way might by OK for local development
+				response.status = 200
+				response.content_type = "image/png"
+				response.body = File.read($basepath + path.sub(/^\/(de|en)\//, "/images/"))
 			else
 				response.status = 404
 				response.content_type = "text/plain"
