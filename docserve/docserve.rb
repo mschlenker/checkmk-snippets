@@ -48,9 +48,9 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 	def do_GET (request, response)
 		html = nil
 		path = request.path
-		path = "/en/" if path == "/"
-		path = "/en/index.html" if path == "/en/" || path == "/en"
-		path = "/de/index.html" if path == "/de/" || path == "/de"
+		response.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, "/en/") if path == "/"
+		response.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, "/en/index.html") if path == "/en/" || path == "/en"
+		response.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, "/de/index.html") if path == "/de/" || path == "/de"
 		# Look for a cached file and 
 		if $cache.has_key? path
 			html = $cache[path].to_html
