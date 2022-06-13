@@ -12,5 +12,9 @@ Requires:
 
 Usage:
 
-`ruby docserve.rb /path/to/my/local/copy/of/checkmk-docs` 
-
+`
+cd docserve
+ruby docserve.rb /path/to/my/local/copy/of/checkmk-docs` 
+firefox http://localhost:8088/ # ...or...
+firefox http://localhost:8088/de/agent_linux.html
+`

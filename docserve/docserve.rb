@@ -47,18 +47,22 @@ end
 class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 	def do_GET (request, response)
 		html = nil
+		path = request.path
+		path = "/en/" if path == "/"
+		path = "/en/index.html" if path == "/en/" || path == "/en"
+		path = "/de/index.html" if path == "/de/" || path == "/de"
 		# Look for a cached file and 
-		if $cache.has_key? request.path
-			html = $cache[request.path].to_html
+		if $cache.has_key? path
+			html = $cache[path].to_html
 			$stderr.puts "Trying to serve from cache..."
 		else
-			filename = request.path.gsub(/html$/, "asciidoc")
+			filename = path.gsub(/html$/, "asciidoc")
 			if File.exists?($basepath + filename)
 				$stderr.puts "Add file to cache #{filename}"
 				s = SingleDocFile.new filename
-				$cache[request.path] = s
+				$cache[path] = s
 			end
-			html = $cache[request.path].to_html
+			html = $cache[path].to_html
 		end
 		unless html.nil?
 			response.status = 200
