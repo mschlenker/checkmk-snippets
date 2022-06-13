@@ -10,6 +10,7 @@ $basepath = ARGV[0]
 
 $calls = 0
 $cache = Hash.new
+$css = File.read("default.css")
 
 # Store a single file: 
 #  - name of source file
@@ -62,16 +63,22 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				s = SingleDocFile.new filename
 				$cache[path] = s
 			end
-			html = $cache[path].to_html
+			html = $cache[path].to_html if $cache.has_key? path
 		end
-		unless html.nil?
+		if html.nil?
+			if path =~ /asciidoctor\.css/
+				response.status = 200
+				response.content_type = "text/css"
+				response.body = $css
+			else
+				response.status = 404
+				response.content_type = "text/plain"
+				response.body = "Ooopsy!"
+			end
+		else
 			response.status = 200
 			response.content_type = "text/html"
 			response.body = html
-		else
-			response.status = 404
-			response.content_type = "text/palin"
-			response.body = "Ooopsy!"
 		end
 	end
 end
