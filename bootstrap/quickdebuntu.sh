@@ -27,9 +27,9 @@ SSHKEYS="/home/${SUDO_USER}/.ssh/id_ecdsa.pub"
 NAMESERVER=8.8.8.8 # Might or might not be overwritten later by DHCP.
 HOSTNAME="throwawaybian"
 EXTRADEBS="apache2"
-ADDUSER="" # "karlheinz" If non-empty a user will be added. This means interaction!
+ADDUSER="mattias" # "karlheinz" If non-empty a user will be added. This means interaction!
 ROOTPASS=0 # Set to 1 to prompt for a root password. This means interaction!
-PKGCACHE="" # Set to nonzero length directory name to enable caching of debs
+PKGCACHE="/data/VM/cache" # Set to nonzero length directory name to enable caching of debs
 UBUSERVER="http://archive.ubuntu.com/ubuntu" # You might change to local mirror, but
 DEBSERVER="http://deb.debian.org/debian"     # this is less relevant when using caching!
 DEVSERVER="http://deb.devuan.org/merged"
@@ -38,12 +38,12 @@ DEVSERVER="http://deb.devuan.org/merged"
 
 CPUS=2
 MEM=2048
-VNC=":23"
+VNC=":29"
 DAEMONIZE="-daemonize" # set to empty string to run in foreground
 EXTRAS="" # add additional CLI parameters
 # This redirects port 8000 on the local machine to 80 on the virtualized Ubuntu
 # and port 2222 to 22 on the Ubuntu. This is often sufficient for development:
-NET="-net nic,model=e1000 -net user,hostfwd=tcp::8000-:80,hostfwd=tcp::2222-:22"
+NET="-net nic,model=e1000 -net user,hostfwd=tcp::8009-:80,hostfwd=tcp::2229-:22"
 # This uses a real tun/tap bridge, use for stationary machines that should be
 # exposed, if using Mattias' bridge script you have tap0 to tap9 available:
 # NET="-device virtio-net-pci,netdev=network3,mac=00:16:17:12:23:11 -netdev tap,id=network3,ifname=tap3,script=no,downscript=no"
