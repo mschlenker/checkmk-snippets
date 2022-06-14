@@ -95,7 +95,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 		path = path.sub(/^\/latest\//, "/")
 		# Look for a cached file and 
 		if $cachedfiles.has_key? path
-			html = $cachefiles[path].to_html
+			html = $cachedfiles[path].to_html
 			$stderr.puts "Trying to serve from cache..."
 		elsif path =~ /html$/
 			filename = path.gsub(/html$/, "asciidoc")
