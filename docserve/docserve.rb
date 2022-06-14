@@ -16,6 +16,10 @@ $cachedfiles = Hash.new
 # FIXME: Currently we are limited to one branch
 $branches = "localdev"
 $latest = "localdev"
+$onthispage = {
+	"de" => "Auf dieser Seite",
+	"en" => "On this page"
+}
 
 # $css = File.read("default.css")
 
@@ -75,7 +79,8 @@ class SingleDocFile
 		end
 		unless cached_exists
 			lang = @filename[1..2]
-			system("asciidoctor -a toc-title=\"On this page\" -a latest=#{$latest} -a branches=#{$branches} -a branch=#{$latest} -a lang=#{lang} -a jsdir=../../assets/js -a download_link=https://checkmk.com/download -a linkcss=true -a stylesheet=checkmk.css -a stylesdir=../../assets/css -T \"#{$templates}/templates/slim\" -E slim -a toc=right \"#{$basepath}/#{@filename}\" -D \"#{outdir}\"")
+			onthispage = $onthispage[lang]
+			system("asciidoctor -a toc-title=\"#{onthispage}\" -a latest=#{$latest} -a branches=#{$branches} -a branch=#{$latest} -a lang=#{lang} -a jsdir=../../assets/js -a download_link=https://checkmk.com/download -a linkcss=true -a stylesheet=checkmk.css -a stylesdir=../../assets/css -T \"#{$templates}/templates/slim\" -E slim -a toc=right \"#{$basepath}/#{@filename}\" -D \"#{outdir}\"")
 		end	
 		if @html.nil?
 			@html = File.read(outfile)
