@@ -127,6 +127,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				# Search CSS or JS or WOFF in the assets directory
 				content = ""
 				ctype = "text/javascript"
+				# FIXME: pygments can be created in the cache directory...
 				assetfile = $templates + "/" + $1 + "." + $2
 				$stderr.puts "Searching #{assetfile}"
 				if File.exists? assetfile
