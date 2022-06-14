@@ -124,15 +124,18 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 			elsif path =~ /images\/(.*)$/
 				image = $1
 				content = ""
+				ctype = "image/png"
 				# We have images both in the assets directory as well as in the docs:
 				[ $basepath + "/images/" + image, $templates + "/assets/images/" + image ].each { |i|
 					if File.exists? i
 						content = File.read i
 					end
 				}
+				ctype = "image/svg+xml" if path =~ /\.svg$/
+				ctype = "image/jpeg" if path =~ /\.jpg$/
 				# FIXME: Serving images this way might only OK for local development
 				response.status = 200
-				response.content_type = "image/png"
+				response.content_type = ctype
 				response.body = content
 			else
 				response.status = 404
