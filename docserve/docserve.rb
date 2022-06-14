@@ -67,7 +67,7 @@ class SingleDocFile
 	
 	# Read an existing file from the cache directory or rebuild if necessary
 	def reread
-		@mtime = File.mtime $basepath + @filename
+		@mtime = File.mtime($basepath + @filename)
 		outfile = "#{$cachedir}/#{$latest}/#{@filename}".gsub(/asciidoc$/, "html")
 		lang = @filename[1..2]
 		outdir = "#{$cachedir}/#{$latest}/#{lang}"
@@ -75,12 +75,15 @@ class SingleDocFile
 		cached_exists = false
 		if File.exists?(outfile)
 			cached_mtime = File.mtime(outfile).to_i
+			$stderr.puts "Mtime in cache: #{cached_mtime}, mtime of asciidoc: #{@mtime.to_i}" 
 			cached_exists = true if cached_mtime > @mtime.to_i
+			$stderr.puts "Use file in cache" if cached_mtime > @mtime.to_i
 		end
 		unless cached_exists
 			lang = @filename[1..2]
 			onthispage = $onthispage[lang]
 			system("asciidoctor -a toc-title=\"#{onthispage}\" -a latest=#{$latest} -a branches=#{$branches} -a branch=#{$latest} -a lang=#{lang} -a jsdir=../../assets/js -a download_link=https://checkmk.com/download -a linkcss=true -a stylesheet=checkmk.css -a stylesdir=../../assets/css -T \"#{$templates}/templates/slim\" -E slim -a toc=right \"#{$basepath}/#{@filename}\" -D \"#{outdir}\"")
+			@html = nil
 		end	
 		if @html.nil?
 			@html = File.read(outfile)
@@ -89,7 +92,7 @@ class SingleDocFile
 		# o = Asciidoctor.load_file($basepath + @filename, safe: :unsafe, standalone: true, template_engine: :slim, attributes: $attributes, base_dir: $basepath + "/en", template_dirs: [ $templates + "/templates/slim", $templates + "/templates/index", "/tmp/en"  ] ) # , :docdir => $basepath)
 		
 		# @html = o.convert safe: :server # (:docdir => $basepath)
-		$stderr.puts "Rebuild cache for #{@filename}"
+		# $stderr.puts "Rebuild cache for #{@filename}"
 		# $stderr.puts o.options
 	end
 	
@@ -97,6 +100,9 @@ class SingleDocFile
 	
 	# Decide whether to reread or just dump the cached file
 	def to_html
+		$stderr.puts "Checking file: " + $basepath + @filename
+		$stderr.puts "Modification time of asciidoc:    " + File.mtime($basepath + @filename).to_s
+		$stderr.puts "Modification time of cached file: " + @mtime.to_s
 		if File.mtime($basepath + @filename) > @mtime
 			reread
 		end
