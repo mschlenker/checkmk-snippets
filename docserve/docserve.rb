@@ -5,13 +5,15 @@
 
 require 'webrick'
 require 'fileutils'
+require 'optparse'
 # require 'asciidoctor'
 
-$basepath = ARGV[0] # Path to the checkmk-docs directory
-$templates = ARGV[1] # Path to the checkmkdocs-styling directory
-$cachedir = ARGV[2] # Path to the cache directory, needed for the menu 
+$basepath = nil # Path to the checkmk-docs directory
+$templates = nil # Path to the checkmkdocs-styling directory
+$cachedir = nil # Path to the cache directory, needed for the menu 
 $cachedfiles = Hash.new
 
+# FIXME: Currently we are limited to one branch
 $branches = "localdev"
 $latest = "localdev"
 
@@ -27,6 +29,20 @@ def prepare_cache
 	# Build the menu on each start, leave it untouched for now
 	[ "de", "en" ].each { |l|
 		system("asciidoctor -T \"#{$templates}/templates/index\" -E slim \"#{$basepath}/#{l}/menu.asciidoc\" -D \"#{$cachedir}/#{$latest}/#{l}\"")
+	}
+end
+
+def create_config
+	opts = OptionParser.new
+	opts.on('-s', '--styling', :REQUIRED) { |i| $templates = i }
+	opts.on('-d', '--docs', :REQUIRED) { |i| $basepath = i }
+	opts.on('-c', '--cache', :REQUIRED) { |i| $cachedir = i }
+	opts.parse!
+	[ $templates, $basepath, $cachedir ].each { |o|
+		if o.nil?
+			puts "At least specify: --styling <dir> --docs <dir> --cache <dir>"
+			exit 1
+		end
 	}
 end
 
@@ -107,7 +123,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 			html = $cachedfiles[path].to_html if $cachedfiles.has_key? path
 		end
 		if html.nil?
-			if path =~ /\/(.*?)\.(css|js|woff)$/
+			if path =~ /\/(.*?)\.(css|js|woff|woff2)$/
 				# Search CSS or JS or WOFF in the assets directory
 				content = ""
 				ctype = "text/javascript"
@@ -118,6 +134,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				end
 				ctype = "text/css" if path =~ /\.css$/
 				ctype = "font/woff" if path =~ /\.woff$/
+				ctype = "font/woff2" if path =~ /\.woff2$/
 				response.status = 200
 				response.content_type = ctype
 				response.body = content
@@ -157,5 +174,6 @@ trap("INT") {
     server.shutdown
 }
 
+create_config
 prepare_cache
 server.start
