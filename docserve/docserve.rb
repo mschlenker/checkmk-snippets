@@ -6,6 +6,9 @@
 require 'webrick'
 require 'fileutils'
 require 'optparse'
+require 'nokogiri'
+
+# require 'rexml/document'
 # require 'asciidoctor'
 
 $basepath = nil # Path to the checkmk-docs directory
@@ -20,6 +23,14 @@ $onthispage = {
 	"de" => "Auf dieser Seite",
 	"en" => "On this page"
 }
+$menuage = {
+	"de" => nil,
+	"en" => nil
+}
+$menufrags = {
+	"de" => nil,
+	"en" => nil
+}
 
 # $css = File.read("default.css")
 
@@ -29,10 +40,6 @@ def prepare_cache
 	}
 	[ "js", "css" ].each { |l|
 		FileUtils.mkdir_p($cachedir + "/assets/" + l )
-	}
-	# Build the menu on each start, leave it untouched for now
-	[ "de", "en" ].each { |l|
-		system("asciidoctor -T \"#{$templates}/templates/index\" -E slim \"#{$basepath}/#{l}/menu.asciidoc\" -D \"#{$cachedir}/#{$latest}/#{l}\"")
 	}
 end
 
@@ -65,8 +72,27 @@ class SingleDocFile
 		reread
 	end
 	
+	def rebuild_menu
+	# Build the menu if necessary
+		[ "de", "en" ].each { |l|
+			rebuild = true
+			unless $menuage[l].nil?
+				rebuild = false if File.mtime("#{$basepath}/#{l}/menu.asciidoc") <= $menuage[l]
+			end
+			if rebuild
+				system("asciidoctor -T \"#{$templates}/templates/index\" -E slim \"#{$basepath}/#{l}/menu.asciidoc\" -D \"#{$cachedir}/#{$latest}/#{l}\"")
+				$menuage[l] = File.mtime("#{$basepath}/#{l}/menu.asciidoc")
+				# This is not nice! Invalidate the whole cache
+				$cachedfiles.each { |k, v| v.mtime = Time.at(0) }
+				$menufrags[l] = File.read "#{$cachedir}/#{$latest}/#{l}/menu.html"
+			end
+		}
+	end
+	
 	# Read an existing file from the cache directory or rebuild if necessary
+	# FIXME: Put the menu to its own class
 	def reread
+		rebuild_menu
 		@mtime = File.mtime($basepath + @filename)
 		outfile = "#{$cachedir}/#{$latest}/#{@filename}".gsub(/asciidoc$/, "html")
 		lang = @filename[1..2]
@@ -75,9 +101,11 @@ class SingleDocFile
 		cached_exists = false
 		if File.exists?(outfile)
 			cached_mtime = File.mtime(outfile).to_i
-			$stderr.puts "Mtime in cache: #{cached_mtime}, mtime of asciidoc: #{@mtime.to_i}" 
-			cached_exists = true if cached_mtime > @mtime.to_i
-			$stderr.puts "Use file in cache" if cached_mtime > @mtime.to_i
+			$stderr.puts "Mtime of cached file: #{cached_mtime}"
+			$stderr.puts "Mtime of asciidoc:    #{@mtime.to_i}"
+			$stderr.puts "Mtime of menu:        #{$menuage[lang].to_i}"
+			cached_exists = true if cached_mtime > @mtime.to_i && cached_mtime > $menuage[lang].to_i
+			$stderr.puts "Using file in cache..." if cached_mtime > @mtime.to_i
 		end
 		unless cached_exists
 			lang = @filename[1..2]
@@ -86,7 +114,13 @@ class SingleDocFile
 			@html = nil
 		end	
 		if @html.nil?
-			@html = File.read(outfile)
+			hdoc = Nokogiri::HTML.parse File.new(outfile)
+			$stderr.puts hdoc
+			head  = hdoc.at_css "head"
+			head.add_child "<!-- Hallo Welt -->"
+			mcont = hdoc.css("div[class='main-nav__content']")[0]
+			mcont.inner_html = $menufrags[lang]
+			@html = hdoc.to_s # html(:indent => 4)
 		end
 		
 		# o = Asciidoctor.load_file($basepath + @filename, safe: :unsafe, standalone: true, template_engine: :slim, attributes: $attributes, base_dir: $basepath + "/en", template_dirs: [ $templates + "/templates/slim", $templates + "/templates/index", "/tmp/en"  ] ) # , :docdir => $basepath)
@@ -103,12 +137,15 @@ class SingleDocFile
 		$stderr.puts "Checking file: " + $basepath + @filename
 		$stderr.puts "Modification time of asciidoc:    " + File.mtime($basepath + @filename).to_s
 		$stderr.puts "Modification time of cached file: " + @mtime.to_s
-		if File.mtime($basepath + @filename) > @mtime
-			reread
-		end
+		refresh = false
+		# Check all files for their mtime:
+		[ $basepath + "/de/menu.asciidoc", $basepath + "/en/menu.asciidoc", $basepath + @filename ].each { |f|
+			refresh = true if File.mtime(f) > @mtime
+		}
+		reread if refresh
 		return @html
 	end
-	attr_reader :mtime
+	attr_accessor :mtime
 end
 
 class MyServlet < WEBrick::HTTPServlet::AbstractServlet
@@ -188,4 +225,5 @@ trap("INT") {
 
 create_config
 prepare_cache
+# rebuild_menu
 server.start

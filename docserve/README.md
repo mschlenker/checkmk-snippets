@@ -8,6 +8,7 @@ Use at your own risk.
 Requires:
 
 * webrick gem
+* nokogiri gem
 * asciidoctor executable
 
 Usage:
