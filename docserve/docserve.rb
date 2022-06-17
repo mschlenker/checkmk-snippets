@@ -7,6 +7,7 @@ require 'webrick'
 require 'fileutils'
 require 'optparse'
 require 'nokogiri'
+require 'json'
 
 # require 'rexml/document'
 # require 'asciidoctor'
@@ -15,6 +16,7 @@ $basepath = nil # Path to the checkmk-docs directory
 $templates = nil # Path to the checkmkdocs-styling directory
 $cachedir = nil # Path to the cache directory, needed for the menu 
 $port = 8088 # Port to use
+$cfgfile = nil
 $cachedfiles = Hash.new
 
 # FIXME later: Currently we are limited to one branch
@@ -50,6 +52,7 @@ $html = [] # Store a list of all HTML files
 
 # Create a list of all allowed files:
 def create_filelist
+	$allowed = []
 	# Allow all asciidoc files except includes and menus
 	$onthispage.each { |lang, s| 
 		Dir.entries($basepath + "/" + lang).each { |f|
@@ -118,7 +121,26 @@ def create_config
 	opts.on('-s', '--styling', :REQUIRED) { |i| $templates = i }
 	opts.on('-d', '--docs', :REQUIRED) { |i| $basepath = i }
 	opts.on('-c', '--cache', :REQUIRED) { |i| $cachedir = i }
+	opts.on('-p', '--port', :REQUIRED) { |i| $port = i }
+	opts.on('--config', :REQUIRED) { |i| $cfgfile = i }
 	opts.parse!
+	# Try to find a config file
+	# 1. command line 
+	# 2. home directory .config/checkmk-docserve.cfg
+	# 3. program directory
+	if $cfgfile.nil? 
+		[ __dir__ + "/checkmk-docserve.cfg", Dir.home + "/.config/checkmk-docserve.cfg" ].each { |f|
+			$cfgfile = f if File.exists? f
+		}
+	end
+	unless $cfgfile.nil?
+		jcfg = JSON.parse(File.read($cfgfile))
+		$templates = jcfg["styling"] unless jcfg["styling"].nil?
+		$basepath = jcfg["docs"] unless jcfg["docs"].nil?
+		$port = jcfg["port"] unless jcfg["port"].nil?
+		$cachedir = jcfg["cache"] unless jcfg["cache"].nil?
+		$stderr.puts jcfg
+	end
 	[ $templates, $basepath, $cachedir ].each { |o|
 		if o.nil?
 			puts "At least specify: --styling <dir> --docs <dir> --cache <dir>"
@@ -217,6 +239,8 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 		ptoks = path.strip.split("/")		
 		status = 200
 		ctype = "application/unknown"
+		# Re-create the filelist if a file not listed is requested, an image or an asciidoc file might have been added
+		create_filelist unless $allowed.include? path.strip
 		if $html.include? path.strip
 			if $cachedfiles.has_key? path.strip
 				$stderr.puts "Trying to serve from memory cache..."
@@ -270,5 +294,4 @@ trap("INT") {
 create_config
 prepare_cache
 prepare_menu
-create_filelist
 server.start
