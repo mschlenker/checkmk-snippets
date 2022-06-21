@@ -2,5 +2,8 @@
 	"styling" : "/home/mschlenker/git/checkmkdocs-styling",
 	"docs" : "/home/mschlenker/git/checkmk-docs",
 	"cache" : "/tmp/docserve.cache",
-	"port" : 8088
+	"port" : 8088,
+	"inject-css" : "/path/to/file/with/css/to/inject",
+	"inject-js" : "/path/to/file/with/js/to/inject",
+	"check-links" : 1
 }

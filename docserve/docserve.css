@@ -1,0 +1,10 @@
+#docserveerrors {
+	border-style: solid;
+	border-width: 2px;
+	border-color: red;
+	padding: 5px;
+}
+
+.errmono {
+	font-family: monospace;
+}

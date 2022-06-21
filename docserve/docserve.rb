@@ -8,17 +8,27 @@ require 'fileutils'
 require 'optparse'
 require 'nokogiri'
 require 'json'
+require 'rexml/document'
+require 'net/http'
+require 'net/https'
 
 # require 'rexml/document'
 # require 'asciidoctor'
 
+# Configuration either from cmdline arguments or from cfg file
 $basepath = nil # Path to the checkmk-docs directory
 $templates = nil # Path to the checkmkdocs-styling directory
 $cachedir = nil # Path to the cache directory, needed for the menu 
 $port = 8088 # Port to use
 $cfgfile = nil
-$cachedfiles = Hash.new
+$injectcss = nil
+$injectjs = nil
+$checklinks = 1
 
+# Cache files here
+$cachedfiles = Hash.new
+# Cache links, only check once per session, empty string means everything is OK
+$cachedlinks = Hash.new
 # FIXME later: Currently we are limited to one branch
 $branches = "localdev"
 $latest = "localdev"
@@ -49,6 +59,45 @@ $mimetypes = {
 
 $allowed = [] # Store a complete list of all request paths
 $html = [] # Store a list of all HTML files
+
+def create_config
+	opts = OptionParser.new
+	opts.on('-s', '--styling', :REQUIRED) { |i| $templates = i }
+	opts.on('-d', '--docs', :REQUIRED) { |i| $basepath = i }
+	opts.on('-c', '--cache', :REQUIRED) { |i| $cachedir = i }
+	opts.on('-p', '--port', :REQUIRED) { |i| $port = i }
+	opts.on('--config', :REQUIRED) { |i| $cfgfile = i }
+	opts.on('--inject-css', :REQUIRED) { |i| $injectcss = i }
+	opts.on('--inject-js', :REQUIRED) { |i| $injectjs = i }
+	opts.on('--check-links', :REQUIRED) { |i| $checklinks = i.to_i}
+	opts.parse!
+	# Try to find a config file
+	# 1. command line 
+	# 2. home directory .config/checkmk-docserve.cfg
+	# 3. program directory
+	if $cfgfile.nil? 
+		[ __dir__ + "/checkmk-docserve.cfg", Dir.home + "/.config/checkmk-docserve.cfg" ].each { |f|
+			$cfgfile = f if File.exists? f
+		}
+	end
+	unless $cfgfile.nil?
+		jcfg = JSON.parse(File.read($cfgfile))
+		$templates = jcfg["styling"] unless jcfg["styling"].nil?
+		$basepath = jcfg["docs"] unless jcfg["docs"].nil?
+		$port = jcfg["port"] unless jcfg["port"].nil?
+		$cachedir = jcfg["cache"] unless jcfg["cache"].nil?
+		$injectcss = jcfg["inject-css"] unless jcfg["inject-css"].nil?
+		$injectjs = jcfg["inject-js"] unless jcfg["inject-js"].nil?
+		$checklinks = jcfg["check-links"] unless jcfg["check-links"].nil?
+		$stderr.puts jcfg
+	end
+	[ $templates, $basepath, $cachedir ].each { |o|
+		if o.nil?
+			puts "At least specify: --styling <dir> --docs <dir> --cache <dir>"
+			exit 1
+		end
+	}
+end
 
 # Create a list of all allowed files:
 def create_filelist
@@ -116,39 +165,6 @@ def prepare_menu
 	}
 end
 
-def create_config
-	opts = OptionParser.new
-	opts.on('-s', '--styling', :REQUIRED) { |i| $templates = i }
-	opts.on('-d', '--docs', :REQUIRED) { |i| $basepath = i }
-	opts.on('-c', '--cache', :REQUIRED) { |i| $cachedir = i }
-	opts.on('-p', '--port', :REQUIRED) { |i| $port = i }
-	opts.on('--config', :REQUIRED) { |i| $cfgfile = i }
-	opts.parse!
-	# Try to find a config file
-	# 1. command line 
-	# 2. home directory .config/checkmk-docserve.cfg
-	# 3. program directory
-	if $cfgfile.nil? 
-		[ __dir__ + "/checkmk-docserve.cfg", Dir.home + "/.config/checkmk-docserve.cfg" ].each { |f|
-			$cfgfile = f if File.exists? f
-		}
-	end
-	unless $cfgfile.nil?
-		jcfg = JSON.parse(File.read($cfgfile))
-		$templates = jcfg["styling"] unless jcfg["styling"].nil?
-		$basepath = jcfg["docs"] unless jcfg["docs"].nil?
-		$port = jcfg["port"] unless jcfg["port"].nil?
-		$cachedir = jcfg["cache"] unless jcfg["cache"].nil?
-		$stderr.puts jcfg
-	end
-	[ $templates, $basepath, $cachedir ].each { |o|
-		if o.nil?
-			puts "At least specify: --styling <dir> --docs <dir> --cache <dir>"
-			exit 1
-		end
-	}
-end
-
 # Store a single file: 
 #  - name of source file
 #  - revision of source file
@@ -158,6 +174,8 @@ class SingleDocFile
 	@mtime = nil
 	@filename = nil
 	@lang = "en"
+	@errors = []
+	@xmlerrs = [] # Store the trace from REXML
 	@blocked = false # Make sure no concurrent asciidoctor processes are running
 	
 	# Initialize, first read
@@ -166,10 +184,61 @@ class SingleDocFile
 		reread
 	end
 	
+	# Check whether the page can be parsed as XML (HTML5 must be validating as XML)
+	def check_xml
+		return if @filename =~ /menu\.asciidoc$/
+		@xmlerrs = []
+		doc = nil
+		begin 
+			doc = REXML::Document.new(@html)
+		rescue => e
+			@xmlerrs = caller
+		end
+	end
+	
+	# Check all links and internal references
+	def check_links(doc)
+		broken_links = Hash.new
+		doc.css("a").each { |a|
+			$stderr.puts a unless a["href"].nil?
+			href = a["href"].split("#")[0]
+			if $cachedlinks.has_key? href
+				broken_links[href] = $cachedlinks[href] unless $cachedlinks[href] == ""
+			elsif href =~ /^\./ || href =~ /^\// || href == "" || href =~ /^[0-9a-z._-]*$/ || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /checkmk\.com\//
+				$cachedlinks[href] = ""
+			else
+				begin
+					headers = nil
+					url = URI(href)
+					resp = Net::HTTP.get_response(url)
+					$stderr.puts resp
+					$cachedlinks[href] = ""
+					if resp.code.to_i > 400 && resp.code.to_i < 500
+						$cachedlinks[href] = resp.code
+						$cachedlinks[href] = "404 – File not found" if resp.code == "404"
+						$cachedlinks[href] = "401 – Unauthorized" if resp.code == "401"
+						broken_links[href] = $cachedlinks[href]
+					end
+				rescue EOFError
+					$cachedlinks[href] = "Could not parse response header"
+					broken_links[href] = $cachedlinks[href]
+				rescue SocketError
+					$cachedlinks[href] = "Host not found or port unavailable"
+					broken_links[href] = $cachedlinks[href]
+				rescue Errno::ECONNRESET
+					$cachedlinks[href] = "Connection reset by peer"
+					broken_links[href] = $cachedlinks[href]
+				end
+			end
+		}
+		return broken_links
+	end
+	
 	# Read an existing file from the cache directory or rebuild if necessary
 	def reread
 		# Block concurrent builds
 		@blocked = true
+		@errors = []
 		# rebuild_menu
 		@mtime = File.mtime($basepath + @filename)
 		outfile = "#{$cachedir}/#{$latest}/#{@filename}".gsub(/asciidoc$/, "html")
@@ -188,17 +257,23 @@ class SingleDocFile
 		unless cached_exists
 			$stderr.puts "Rebuilding file: " + @filename  
 			onthispage = $onthispage[@lang]
+			comm = ""
 			if @filename =~ /menu\.asciidoc$/
 				comm = "asciidoctor -T \"#{$templates}/templates/index\" -E slim \"#{$basepath}/#{@lang}/menu.asciidoc\" -D \"#{$cachedir}/#{$latest}/#{@lang}\""
 				$stderr.puts comm
-				system comm
 			else
 				comm = "asciidoctor -a toc-title=\"#{onthispage}\" -a latest=#{$latest} -a branches=#{$branches} -a branch=#{$latest} -a lang=#{@lang} -a jsdir=../../assets/js -a download_link=https://checkmk.com/download -a linkcss=true -a stylesheet=checkmk.css -a stylesdir=../../assets/css -T \"#{$templates}/templates/slim\" -E slim -a toc=right \"#{$basepath}/#{@filename}\" -D \"#{outdir}\""
 				$stderr.puts comm
-				system comm
 			end
+			IO.popen(comm + " 2>&1") { |o|
+				while o.gets
+					line = $_.strip
+					@errors.push line unless line =~ /checkmk\.css/
+				end
+			}
 		end
 		@html = File.read(outfile)
+		check_xml
 		@blocked = false
 	end
 	
@@ -218,9 +293,42 @@ class SingleDocFile
 		unless @filename =~ /menu\.asciidoc$/
 			hdoc = Nokogiri::HTML.parse html
 			head  = hdoc.at_css "head"
-			head.add_child "<!-- Hallo Welt -->"
+			cnode = hdoc.css("div[id='preamble']")[0]
+			# $stderr.puts cnode # .children[0] # .first_element_child
+			#@errors.each { |e|
+			#	# head.first_element_child.before("<!-- #{e} -->\n")
+			#	head.prepend_child "<!-- #{e} -->\n"
+			#	#cnode.children[1].before("<div id='adocerrors'>" + @errors.join("<br />") +  "</div>")
+			#}
+			#@xmlerrs.each { |e|
+			#	head.prepend_child "<!-- #{e} -->\n"
+			#	cnode.first_element_child.before("<div id='xmlerrors'>" + e.join("<br />") +  "</div>")
+			#}
+			# cnode.prepend_child("<div id='xmlerrors'>" + @xmlerrs.join("<br />") +  "</div>")
+			head.add_child("<style>\n" + File.read(__dir__ + "/docserve.css") + "\n</style>\n")
+			unless $injectcss.nil?
+				head.add_child("<style>\n" + File.read($injectcss) + "\n</style>\n") if File.file? $injectcss
+			end
+			broken_links = check_links hdoc
+			if @errors.size > 0 || broken_links.size > 0
+				enode = "<div id='docserveerrors'>"
+				enode += "<h3>Asciidoctor errors</h3><p class='errmono'>" + @errors.join("<br />") +  "</p>" if @errors.size > 0
+				if broken_links.size > 0
+					enode += "<h3>Broken links</h3><ul>"
+					broken_links.each { |l,p|
+						enode += "<li><a href='#{l}' target='_blank'>#{l}</a> (#{p})</li>\n"
+					}
+					enode += "</ul>"
+				end
+				enode += "</div>\n"
+				cnode.prepend_child enode
+			end
 			mcont = hdoc.css("div[class='main-nav__content']")[0]
 			mcont.inner_html = $cachedfiles["/" + @lang + "/menu.asciidoc"].to_html
+			body  = hdoc.at_css "body"
+			unless $injectjs.nil?
+				body.add_child("<script>\n" + File.read($injectjs) + "\n</script>\n") if File.file? $injectjs
+			end
 			html = hdoc.to_s # html(:indent => 4)
 		end
 		return html
