@@ -205,7 +205,7 @@ class SingleDocFile
 			href = a["href"].split("#")[0]
 			if $cachedlinks.has_key? href
 				broken_links[href] = $cachedlinks[href] unless $cachedlinks[href] == ""
-			elsif href =~ /^\./ || href =~ /^\// || href == "" || href =~ /^[0-9a-z._-]*$/ || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /checkmk\.com\//
+			elsif href =~ /^\./ || href =~ /^\// || href == "" || href =~ /^[0-9a-z._-]*$/ || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /checkmk\.com\// || href =~ /^mailto/
 				$cachedlinks[href] = ""
 			else
 				begin
