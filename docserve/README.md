@@ -9,6 +9,7 @@ Requires:
 
 * webrick gem
 * nokogiri gem
+* tilt gem
 * asciidoctor executable
 
 Usage:
