@@ -199,6 +199,7 @@ class SingleDocFile
 	# Check all links and internal references
 	def check_links(doc)
 		broken_links = Hash.new
+		return broken_links if $checklinks < 1
 		doc.css("a").each { |a|
 			$stderr.puts a unless a["href"].nil?
 			href = a["href"].split("#")[0]
