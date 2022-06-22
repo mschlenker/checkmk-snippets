@@ -10,7 +10,10 @@ Requires:
 * webrick gem
 * nokogiri gem
 * tilt gem
+* slim gem
+* concurrent-ruby gem (recommended)
 * asciidoctor executable
+* asciidoctor-diagram gem
 
 Usage:
 
