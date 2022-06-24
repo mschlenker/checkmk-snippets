@@ -54,7 +54,9 @@ $mimetypes = {
 	"png" => "image/png",
 	"jpg" => "image/jpeg",
 	"jpeg" => "image/jpeg",
-	"svg" => "image/svg+xml"
+	"svg" => "image/svg+xml",
+	"ico" => "image/vnd.microsoft.icon",
+	"json" => "application/json"
 }
 
 $allowed = [] # Store a complete list of all request paths
@@ -107,8 +109,10 @@ def create_filelist
 		Dir.entries($basepath + "/" + lang).each { |f|
 			if f =~ /\.asciidoc/ 
 				fname = "/latest/" + lang + "/" + f.sub(/\.asciidoc$/, ".html")
+				jname = "/last_change/latest/" + lang + "/" + f.sub(/\.asciidoc$/, ".html")
 				unless f =~ /^(include|menu)/
 					$allowed.push fname
+					$allowed.push jname
 					$html.push fname
 				end
 			end
@@ -140,6 +144,7 @@ def create_filelist
 	$onthispage.each { |lang, s| 
 		$allowed.push "/latest/lunr.index.#{lang}.js"
 	}
+	$allowed.push "/favicon.ico"
 	$allowed.push "/latest/index.html"
 	$allowed.push "/latest/"
 	$allowed.push "/latest"
@@ -235,6 +240,10 @@ class SingleDocFile
 		return broken_links
 	end
 	
+	def check_age
+		return File.mtime($basepath + @filename)
+	end
+	
 	# Read an existing file from the cache directory or rebuild if necessary
 	def reread
 		# Block concurrent builds
@@ -327,6 +336,11 @@ class SingleDocFile
 			mcont = hdoc.css("div[class='main-nav__content']")[0]
 			mcont.inner_html = $cachedfiles["/" + @lang + "/menu.asciidoc"].to_html
 			body  = hdoc.at_css "body"
+			body.add_child("<script>\n" + 
+				File.read(__dir__ + "/autoreload.js").
+				sub("CHANGED", @mtime.to_i.to_s).
+				sub("JSONURL", "/last_change/latest" + @filename.sub(".asciidoc", ".html")) + 
+				"\n</script>\n")
 			unless $injectjs.nil?
 				body.add_child("<script>\n" + File.read($injectjs) + "\n</script>\n") if File.file? $injectjs
 			end
@@ -380,6 +394,19 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				html = File.read $basepath + "/images/" + ptoks[-1]
 				suffix = ptoks[-1].split(".")[1] 
 				ctype= $mimetypes[suffix] if $mimetypes.has_key? suffix
+			elsif ptoks.include?("favicon.ico")
+				html = File.read __dir__ + "/" + ptoks[-1]
+				ctype= $mimetypes["ico"]
+			elsif ptoks.include?("last_change")
+				# Assume path like "last_change/en/agent_linux.html"
+				html_path = "/latest/" + ptoks[-2] + "/" + ptoks[-1]
+				if $cachedfiles.has_key? html_path
+					
+					html = "{ \"last-change\" : " + $cachedfiles[html_path].check_age.to_i.to_s + " }"
+				else
+					html = "{ \"last-change\" : 0 }"
+				end
+				ctype= $mimetypes["json"]
 			end
 			response.status = status
 			response.content_type = ctype

@@ -38,7 +38,7 @@ DEVSERVER="http://deb.devuan.org/merged"
 
 CPUS=2
 MEM=2048
-VNC=":29"
+VNC=":23"
 DAEMONIZE="-daemonize" # set to empty string to run in foreground
 EXTRAS="" # add additional CLI parameters
 # This redirects port 8000 on the local machine to 80 on the virtualized Ubuntu
