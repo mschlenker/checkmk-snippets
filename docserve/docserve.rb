@@ -331,7 +331,11 @@ class SingleDocFile
 					enode += "</ul>"
 				end
 				enode += "</div>\n"
-				cnode.prepend_child enode
+				begin 
+					cnode.prepend_child enode
+				rescue
+					$stderr.puts "Preable not found!"
+				end
 			end
 			mcont = hdoc.css("div[class='main-nav__content']")[0]
 			mcont.inner_html = $cachedfiles["/" + @lang + "/menu.asciidoc"].to_html
