@@ -393,6 +393,13 @@ class SingleDocFile
 					}
 					enode += "</ul>"
 				end
+				if @missing_includes.size > 0
+					enode += "<h3>Missing include files</h3><ul>"
+					@missing_includes.each { |m|
+						enode += "<li>#{m}</li>\n"
+					}
+					enode += "</ul>"
+				end
 				enode += "</div>\n"
 				begin 
 					cnode.prepend_child enode
