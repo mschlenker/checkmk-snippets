@@ -27,6 +27,8 @@ $checklinks = 1
 
 # Cache files here
 $cachedfiles = Hash.new
+# Same for includefiles
+$cachedincludes = Hash.new
 # Cache links, only check once per session, empty string means everything is OK
 $cachedlinks = Hash.new
 # FIXME later: Currently we are limited to one branch
@@ -170,6 +172,26 @@ def prepare_menu
 	}
 end
 
+class SingleIncludeFile
+	@mtime = nil
+	@filename = nil
+	@lang = "en"
+	
+	# Initialize, first read
+	def initialize(filename)
+		$stderr.puts "Adding #{filename} to list of includes…"
+		@filename = filename
+		check_age
+	end
+	attr_accessor :mtime
+	
+	def check_age
+		@mtime = File.mtime($basepath + @filename)
+		return @mtime
+	end
+	
+end
+
 # Store a single file: 
 #  - name of source file
 #  - revision of source file
@@ -182,6 +204,8 @@ class SingleDocFile
 	@errors = []
 	@xmlerrs = [] # Store the trace from REXML
 	@blocked = false # Make sure no concurrent asciidoctor processes are running
+	@includes = [] # List of all includes in this file
+	@missing_includes = [] # Includes that could not be found 
 	
 	# Initialize, first read
 	def initialize(filename)
@@ -240,8 +264,42 @@ class SingleDocFile
 		return broken_links
 	end
 	
+	def read_includes
+		@includes = Array.new
+		@mtime = File.mtime($basepath + @filename)
+		File.open($basepath + @filename).each { |line|
+			if line =~ /include::(.*?)\[/
+				ifile = $1
+				ipath = "/" + @lang + "/" + ifile
+				if File.file?($basepath + ipath)
+					$cachedincludes[ipath] = SingleIncludeFile.new ipath
+				else
+					$stderr.puts "Include file is missing: #{ipath}"
+				end
+				@includes.push ipath
+			end
+		}
+	end
+	
+	def check_includes
+		latest_include = @mtime
+		@missing_includes = Array.new
+		@includes.each { |i|
+			if File.file?($basepath + i) && $cachedincludes.has_key?(i)
+				mtime = $cachedincludes[i].check_age
+				latest_include = mtime if mtime > latest_include
+			else
+				@missing_includes.push i
+			end
+		}
+		return latest_include
+	end
+	
 	def check_age
-		return File.mtime($basepath + @filename)
+		imtime = check_includes
+		fmtime = File.mtime($basepath + @filename)
+		return imtime if imtime > fmtime
+		return fmtime
 	end
 	
 	# Read an existing file from the cache directory or rebuild if necessary
@@ -250,10 +308,13 @@ class SingleDocFile
 		@blocked = true
 		@errors = []
 		# rebuild_menu
-		@mtime = File.mtime($basepath + @filename)
 		outfile = "#{$cachedir}/#{$latest}/#{@filename}".gsub(/asciidoc$/, "html")
 		@lang = @filename[1..2]
 		outdir = "#{$cachedir}/#{$latest}/#{@lang}"
+		# Check includes
+		read_includes
+		@mtime = File.mtime($basepath + @filename)
+		@mtime = check_includes
 		cached_mtime = 0
 		cached_exists = false
 		if File.exists?(outfile) && @html.nil?
@@ -292,8 +353,10 @@ class SingleDocFile
 		$stderr.puts "Checking file: " + $basepath + @filename
 		$stderr.puts "Modification time of asciidoc:             " + File.mtime($basepath + @filename).to_s
 		$stderr.puts "Modification time of file in memory cache: " + @mtime.to_s
+		# $stderr.puts "Modification time of latest include file:  " + check_includes.to_s
 		refresh = false
 		refresh = true if File.mtime($basepath + @filename) > @mtime
+		refresh = true if check_includes  > @mtime
 		# Rebuild asciidoc if necessary
 		if refresh == true && @blocked == false
 			reread
