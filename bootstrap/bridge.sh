@@ -4,8 +4,11 @@
 # WiFi, but must take place after associating to an access point.
 
 iface="$1"
-if [ -z "$iface" ] ; then
-	echo "No interface specified to bridge to:"
+
+if ip link show dev br0 ; then
+	echo "Bridge exists, skipping..."
+elif [ -z "$iface" ] ; then
+	echo "No interface specified to bridge to, use one of those:"
 	nmcli con show
 	exit 1
 fi
