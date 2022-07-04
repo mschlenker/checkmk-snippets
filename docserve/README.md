@@ -14,12 +14,23 @@ Requires:
 * concurrent-ruby gem (recommended)
 * asciidoctor executable
 * asciidoctor-diagram gem
+* pygments.rb gem
+
+Due to a bug your checkmkdocs-styling repo need two empty menu files:
+
+```
+cd checkmkdocs-styling
+for l in de en ; do
+    mkdir ${l}
+    touch ${l}/menu.html.slim
+done
+```
 
 Usage:
 
 ```
 cd docserve
-sudo gem install webrick # pretending asciidoctor gem is already there
+sudo gem install webrick # pretending everything for asciidoctor is already there
 ruby docserve.rb --docs ~/git/checkmk-docs --styling ~/git/checkmkdocs-styling --cache /tmp/doccache
 firefox http://localhost:8088/
 ```
