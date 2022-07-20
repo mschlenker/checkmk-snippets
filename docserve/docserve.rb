@@ -408,7 +408,7 @@ class SingleDocFile
 				end
 			end
 			mcont = hdoc.css("div[class='main-nav__content']")[0]
-			mcont.inner_html = $cachedfiles["/" + @lang + "/menu.asciidoc"].to_html
+			mcont.inner_html = $cachedfiles["/" + @lang + "/menu.asciidoc"].to_html unless mcont.nil?
 			body  = hdoc.at_css "body"
 			body.add_child("<script>\n" + 
 				File.read(__dir__ + "/autoreload.js").
