@@ -21,8 +21,8 @@ $templates = nil # Path to the checkmkdocs-styling directory
 $cachedir = nil # Path to the cache directory, needed for the menu 
 $port = 8088 # Port to use
 $cfgfile = nil
-$injectcss = nil
-$injectjs = nil
+$injectcss = []
+$injectjs = []
 $checklinks = 1
 
 # Cache files here
@@ -31,6 +31,8 @@ $cachedfiles = Hash.new
 $cachedincludes = Hash.new
 # Cache links, only check once per session, empty string means everything is OK
 $cachedlinks = Hash.new
+# Cache the glossary
+$cachedglossary = Hash.new
 # FIXME later: Currently we are limited to one branch
 $branches = "localdev"
 $latest = "localdev"
@@ -71,8 +73,8 @@ def create_config
 	opts.on('-c', '--cache', :REQUIRED) { |i| $cachedir = i }
 	opts.on('-p', '--port', :REQUIRED) { |i| $port = i }
 	opts.on('--config', :REQUIRED) { |i| $cfgfile = i }
-	opts.on('--inject-css', :REQUIRED) { |i| $injectcss = i }
-	opts.on('--inject-js', :REQUIRED) { |i| $injectjs = i }
+	opts.on('--inject-css', :REQUIRED) { |i| $injectcss = i.split(",") }
+	opts.on('--inject-js', :REQUIRED) { |i| $injectjs = i.split(",") }
 	opts.on('--check-links', :REQUIRED) { |i| $checklinks = i.to_i}
 	opts.parse!
 	# Try to find a config file
@@ -150,6 +152,7 @@ def create_filelist
 	$allowed.push "/latest/index.html"
 	$allowed.push "/latest/"
 	$allowed.push "/latest"
+	prepare_glossary
 	$allowed.each { |f| $stderr.puts f }
 end
 
@@ -170,6 +173,30 @@ def prepare_menu
 		s = SingleDocFile.new path
 		$cachedfiles[path] = s
 	}
+end
+
+# Prepare the glossary
+def prepare_glossary
+	[ "de", "en" ].each { |lang|
+		$cachedglossary[lang] = Hash.new
+		path = "/#{lang}/glossar.asciidoc"
+		s = SingleDocFile.new path
+		$cachedfiles[path] = s
+		# $stderr.puts s.to_html
+		# doc.css("a").each { |a|
+		# mcont = hdoc.css("div[class='main-nav__content']")[0]
+		doc = Nokogiri::HTML(s.to_html)
+		doc.css("div[class='sect3']").each { |e|
+			id = e.css("span[class='hidden-anchor sr-only']")[0]["id"]
+			$cachedglossary[lang][id] = e.inner_html
+			$allowed.push("/glossary/" + lang + "/" + id) 
+		}
+		
+	}
+end
+
+def get_glossary(lang, id)
+	return $cachedglossary[lang][id].to_s
 end
 
 class SingleIncludeFile
@@ -379,9 +406,9 @@ class SingleDocFile
 			#}
 			# cnode.prepend_child("<div id='xmlerrors'>" + @xmlerrs.join("<br />") +  "</div>")
 			head.add_child("<style>\n" + File.read(__dir__ + "/docserve.css") + "\n</style>\n")
-			unless $injectcss.nil?
-				head.add_child("<style>\n" + File.read($injectcss) + "\n</style>\n") if File.file? $injectcss
-			end
+			$injectcss.each { |c|
+				head.add_child("<style>\n" + File.read(c) + "\n</style>\n") if File.file? c
+			}
 			broken_links = check_links hdoc
 			if @errors.size > 0 || broken_links.size > 0
 				enode = "<div id='docserveerrors'>"
@@ -415,9 +442,9 @@ class SingleDocFile
 				sub("CHANGED", @mtime.to_i.to_s).
 				sub("JSONURL", "/last_change/latest" + @filename.sub(".asciidoc", ".html")) + 
 				"\n</script>\n")
-			unless $injectjs.nil?
-				body.add_child("<script>\n" + File.read($injectjs) + "\n</script>\n") if File.file? $injectjs
-			end
+			$injectjs.each { |j|
+				body.add_child("<script>\n" + File.read(j) + "\n</script>\n") if File.file? j
+			}
 			html = hdoc.to_s # html(:indent => 4)
 		end
 		return html
@@ -458,6 +485,10 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				html = File.read $templates + path
 				suffix = ptoks[-1].split(".")[1] 
 				ctype= $mimetypes[suffix] if $mimetypes.has_key? suffix
+			elsif ptoks.include?("glossary")
+				# /glossary/lang/id
+				html = get_glossary(ptoks[-2], ptoks[-1])
+				ctype= "text/plain"
 			elsif ptoks.include?("images") && ptoks.include?("icons")
 				# Search icons only in the images/icons directory
 				html = File.read $basepath + "/images/icons/" + ptoks[-1]
@@ -504,4 +535,5 @@ trap("INT") {
 create_config
 prepare_cache
 prepare_menu
+# prepare_glossary
 server.start
