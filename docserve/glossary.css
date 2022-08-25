@@ -1,0 +1,12 @@
+#glossary_overlay {
+	display: none;
+	position: fixed;
+	top: 10px;
+	left: 10px;
+	border: 1px solid lightgray;
+	z-index: 1100;
+	background-color: white;
+	width: 40%;
+	padding: 4px;
+	box-shadow: 0 3px 6px rgba(29,29,27,.2);
+}
