@@ -44,4 +44,10 @@ As of now no systemd unit file is provided, you might just start it via your `/e
 screen -dmS docserve su harry -c "ruby /full/path/to/docserve.rb --config /full/path/to/myconfig.cfg"
 ```
 
+Or in the startup file of your session manager that is already executed with user privileges:
+
+```
+screen -dmS docserve ruby /full/path/to/docserve.rb --config /full/path/to/myconfig.cfg
+```
+
 This starts a screen session with the docserve script running inside. You can connect to this screen session to view console output.
