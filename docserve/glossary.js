@@ -1,6 +1,7 @@
 // JS for glossary overlays
 
 var entered_overlay = 0;
+var tout;
 
 // Get the container
 var artcontent = document.getElementsByTagName("main")[0];
@@ -31,17 +32,29 @@ function removeGlossary() {
 	if (box) {
 		box.remove();
 	}
+	try {
+		clearTimeout(tout);
+		console.log("Cleared timeout: " + tout);
+	} catch (e) {
+		console.log("No timeout to clear.");
+	}
 	entered_overlay = 0;
 }
 
 function mightCloseGlossary() {
 	if (entered_overlay < 1) {
 		removeGlossary();
+		console.log("Removed box after given timeout.");
 	}
 }
 
 function waitOverlayClose() {
-	setTimeout(mightCloseGlossary, 500);
+	var entry = this.getAttribute("href");
+	console.log("Leaving link: " + entry);
+	var box = document.getElementById("glossary_overlay");
+	if (box) {
+		tout = setTimeout(mightCloseGlossary, 500);
+	}
 }
 
 function enterOverlayBox() {
@@ -57,6 +70,12 @@ function exitOverlayBox() {
 }
 
 function mouseOverGlossary(event) {
+	try {
+		clearTimeout(tout);
+		console.log("Cleared timeout: " + tout);
+	} catch (e) {
+		console.log("No timeout to clear.");
+	}
 	var entry = this.getAttribute("href").split("#")[1];
 	// console.log(entry);
 	var xhr = new XMLHttpRequest();
@@ -103,8 +122,14 @@ function displayGlossary(html, x, y) {
 }
 
 function mouseOverPreview(event) {
+	try {
+		clearTimeout(tout);
+		console.log("Cleared timeout: " + tout);
+	} catch (e) {
+		console.log("No timeout to clear.");
+	}
 	var target =  this.getAttribute("href").split("#")[0];
-	console.log(target);
+	console.log("Entering link to: " + target);
 	var xhr = new XMLHttpRequest();
 	xhr.open('GET', target, true);
 	xhr.responseType = "document";
