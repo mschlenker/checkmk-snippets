@@ -258,7 +258,11 @@ class SingleDocFile
 		return broken_links if $checklinks < 1
 		doc.css("a").each { |a|
 			$stderr.puts a unless a["href"].nil?
-			href = a["href"].split("#")[0]
+			begin
+				href = a["href"].split("#")[0]
+			rescue
+				href = "."
+			end
 			if $cachedlinks.has_key? href
 				broken_links[href] = $cachedlinks[href] unless $cachedlinks[href] == ""
 			elsif href =~ /^\./ || href =~ /^\// || href == "" || href =~ /^[0-9a-z._-]*$/ || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /checkmk\.com\// || href =~ /^mailto/
@@ -287,6 +291,9 @@ class SingleDocFile
 					broken_links[href] = $cachedlinks[href]
 				rescue OpenSSL::SSL::SSLError
 					$cachedlinks[href] = "Unspecified SSL error"
+					broken_links[href] = $cachedlinks[href]
+				rescue URI::InvalidURIError
+					$cachedlinks[href] = "Invalid URI error"
 					broken_links[href] = $cachedlinks[href]
 				end
 			end
