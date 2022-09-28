@@ -76,11 +76,12 @@ function mouseOverGlossary(event) {
 	} catch (e) {
 		console.log("No timeout to clear.");
 	}
+	var ptoks = window.location.pathname.split("/");
 	var entry = this.getAttribute("href").split("#")[1];
 	// console.log(entry);
 	var xhr = new XMLHttpRequest();
 	// var j;
-	xhr.open('GET', "/glossary/de/" + entry, true);
+	xhr.open('GET', "/glossary/" + ptoks[2] + "/" + entry, true);
 	xhr.overrideMimeType("text/plain; charset=utf8");
 	// xhr.responseType = 'json';
 	xhr.onload = function() {

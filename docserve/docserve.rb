@@ -11,6 +11,11 @@ require 'json'
 require 'rexml/document'
 require 'net/http'
 require 'net/https'
+begin
+	require 'hunspell'
+rescue LoadError
+	$stderr.puts "Hunspell missing, working without spell checking"
+end
 
 # require 'rexml/document'
 # require 'asciidoctor'
@@ -232,7 +237,8 @@ class SingleDocFile
 	@xmlerrs = [] # Store the trace from REXML
 	@blocked = false # Make sure no concurrent asciidoctor processes are running
 	@includes = [] # List of all includes in this file
-	@missing_includes = [] # Includes that could not be found 
+	@missing_includes = [] # Includes that could not be found
+	@spelltext = [] # Array of plaintext nodes for checking with hunspell
 	
 	# Initialize, first read
 	def initialize(filename)
@@ -265,7 +271,7 @@ class SingleDocFile
 			end
 			if $cachedlinks.has_key? href
 				broken_links[href] = $cachedlinks[href] unless $cachedlinks[href] == ""
-			elsif href =~ /^\./ || href =~ /^\// || href == "" || href =~ /^[0-9a-z._-]*$/ || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /checkmk\.com\// || href =~ /^mailto/
+			elsif href =~ /^\./ || href =~ /^\// || href == "" || href.nil? || href =~ /^[0-9a-z._-]*$/ || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /checkmk\.com\// || href =~ /^mailto/
 				$cachedlinks[href] = ""
 			else
 				begin
@@ -280,6 +286,9 @@ class SingleDocFile
 						$cachedlinks[href] = "401 – Unauthorized" if resp.code == "401"
 						broken_links[href] = $cachedlinks[href]
 					end
+				rescue ArgumentError
+					$cachedlinks[href] = "Could not convert URI"
+					broken_links[href] = $cachedlinks[href]
 				rescue EOFError
 					$cachedlinks[href] = "Could not parse response header"
 					broken_links[href] = $cachedlinks[href]
@@ -339,6 +348,10 @@ class SingleDocFile
 		return fmtime
 	end
 	
+	def check_spelling
+		
+	end
+	
 	# Read an existing file from the cache directory or rebuild if necessary
 	def reread
 		# Block concurrent builds
@@ -382,6 +395,7 @@ class SingleDocFile
 		end
 		@html = File.read(outfile)
 		check_xml
+		check_spelling
 		@blocked = false
 	end
 	
