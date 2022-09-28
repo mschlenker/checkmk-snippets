@@ -1,0 +1,36 @@
+{'author': 'Mattias Schlenker <mattias.schlenker@tribe29.com>',
+ 'description': 'Background: The Watterott CO2 Ampel ("CO2 traffic light") is '
+                'a networkble sensor board, primarily made for monitoring CO2, '
+                'but includes other sensors as temperature and humidity as '
+                'well. It is open hardware and uses an open source firmware. '
+                'https://learn.watterott.com/breakouts/co2-ampel/ \n'
+                '\n'
+                'The factory firmware includes a simple Checkmk agent via '
+                'HTTP/REST-API: http://12.34.56.78/cmk-agent\n'
+                '\n'
+                'Since the agent is only available via HTTP, the monitoring '
+                'has to be configured using "individual program call instead '
+                'of agent access", see\n'
+                '\n'
+                'https://docs.checkmk.com/latest/en/datasource_programs.html\n'
+                '\n'
+                'The output includes one local check that creates a service '
+                'immediately after discovery. However this takes thresholds '
+                'from the EPROM of the boards which makes central '
+                'administration difficult. This plugin adds discovery for all '
+                'other sensors. Since different versions of the board have '
+                'differect sensors, individual discovery is needed.\n'
+                '\n'
+                'German users: See ASR3.5 and ASR3.6 (Germany) for thresholds '
+                'on CO2/temperature/humidity in working environments. Only CO2 '
+                'is quite fixed at 1000ppm. If no quick exchange of air is '
+                'possible, lower thresholds from 1000/1200 to 900/1000.\n',
+ 'download_url': 'https://github.com/mschlenker/checkmk-snippets/',
+ 'files': {'agent_based': ['co2welectronic.py'],
+           'web': ['plugins/wato/co2welectronic_parameters.py']},
+ 'name': 'watterott_CO2_ampel',
+ 'title': 'Watterott CO2 Ampel',
+ 'version': '0.1.2',
+ 'version.min_required': '2.1.0',
+ 'version.packaged': '2.1.0p12',
+ 'version.usable_until': '2.2.999'}
