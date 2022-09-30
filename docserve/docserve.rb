@@ -361,6 +361,11 @@ class SingleDocFile
 		rescue
 			return
 		end
+		# Load our own dictionary with brandnames and our terms
+		begin
+			sps.push Hunspell.new('/usr/share/hunspell/en_US.aff', './branding.dic')
+		rescue
+		end
 		words = Array.new
 		hdoc = Nokogiri::HTML.parse @html
 		hdoc.search(".//pre[@class='pygments']").remove
