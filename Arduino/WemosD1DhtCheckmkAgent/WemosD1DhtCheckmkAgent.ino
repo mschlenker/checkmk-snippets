@@ -34,8 +34,8 @@ humidity 36.40
 // Define some offsets. Since constantly polling the WiFi module warms it up, solutions
 // like the D1 mini shield might require higher offsets.  
 // Sensor offsets are typically +/- 2.5°C. 
-#define T_OFFSET 4.5  // sensor shows 4.5°C higher than real value
-#define H_OFFSET -2.0 // Sensor shows 2.0% lower than real value 
+#define T_OFFSET 4.0  // sensor shows 4.5°C lower than real value
+#define H_OFFSET -2.0 // Sensor shows 2.0% higher than real value 
 
 // Define some thresholds, these are taken from recommendations regarding office rooms, 
 // for data centers you might allow a wider temperature range and prefer lower humidity.

@@ -363,50 +363,39 @@ class SingleDocFile
 		end
 		# Load our own dictionary with brandnames and our terms
 		begin
-			sps.push Hunspell.new('/usr/share/hunspell/en_US.aff', './branding.dic')
+			sps.push Hunspell.new('/usr/share/hunspell/en_US.aff', $basepath + '/testing/hunspell/brandnames.dic')
+		rescue
+		end
+		begin
+			if @lang == "de"
+				sps.push Hunspell.new('/usr/share/hunspell/de_DE.aff', $basepath + "/testing/hunspell/extra_#{@lang}.dic")
+			else
+				sps.push Hunspell.new('/usr/share/hunspell/en_US.aff', $basepath + "/testing/hunspell/extra_#{@lang}.dic")
+			end
 		rescue
 		end
 		words = Array.new
 		hdoc = Nokogiri::HTML.parse @html
 		hdoc.search(".//pre[@class='pygments']").remove
 		hdoc.search(".//div[@class='listingblock']").remove
+		hdoc.search(".//div[@class='dropdown__language']").remove
 		hdoc.search(".//code").remove
 		hdoc.search(".//script").remove
 		content  = hdoc.css("body main")
 		content.search("//text()").each { |node|
 			$stderr.puts node.to_s
 			n = node.to_s
-			n = n.to_s.gsub(/—/, " ")
-			n = n.to_s.gsub(/=/, " ")
-			n = n.gsub(/-/, " ")
-			n = n.gsub(/–/, " ")
-			n = n.gsub(/\"/, " ")
-			n = n.gsub(/\'/, " ")
-			n = n.gsub(/\//, " ")
-			n = n.gsub(/„/, " ")
-			n = n.gsub(/“/, " ")
-			n = n.gsub(/bzw\./, " ")
-			n = n.gsub(/z\.B\./, " ")
-			n = n.gsub(/ggf\./, " ")
-			n = n.gsub(/\./, " ")
-			n = n.gsub(/\;/, " ")
-			n = n.gsub(/\!/, " ")
-			n = n.gsub(/\?/, " ")
-			n = n.gsub(/,/, " ")
-			n = n.gsub(/\:/, " ")
-			n = n.gsub(/-/, " ")
-			n = n.gsub(/-/, " ")
-			n = n.gsub(/\(/, " ")
-			n = n.gsub(/\)/, " ")
-			n = n.gsub(/…/, " ")
-			n = n.gsub(/&/, " ")
-			n = n.gsub(/ /, " ")
-			n = n.gsub(/ /, " ")
+			[ /—/, /=/, /-/, /–/, /\"/, /\'/, /\//, /„/, /“/,
+			  /bzw\./, /z\.B\./, /ggf\./, /\./, /\;/, /\!/, /\?/,
+			  /,/, /\:/, /-/, /-/, /\(/, /\)/, /…/, /&/, / /, / /,
+			  /#/, /’/, /‘/ ].each { |r|
+				n = n.gsub(r, " ")
+			}
 			n.strip.split(/\s+/).each { |w|
 				words.push w.strip unless w.strip == ""
 			}
 		}
-		words.uniq.each { |w|
+		words.uniq.sort.each { |w|
 			checkw = w.strip
 			valid = false
 			sps.each { |sp|
