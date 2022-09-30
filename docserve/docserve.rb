@@ -238,11 +238,12 @@ class SingleDocFile
 	@blocked = false # Make sure no concurrent asciidoctor processes are running
 	@includes = [] # List of all includes in this file
 	@missing_includes = [] # Includes that could not be found
-	@spelltext = [] # Array of plaintext nodes for checking with hunspell
+	@misspelled = [] # Array of misspelled words
 	
 	# Initialize, first read
 	def initialize(filename)
 		@filename = filename
+		@misspelled = []
 		reread
 	end
 	
@@ -349,7 +350,67 @@ class SingleDocFile
 	end
 	
 	def check_spelling
-		
+		@misspelled = Array.new
+		sps = []
+		begin
+			sps.push Hunspell.new('/usr/share/hunspell/en_US.aff', '/usr/share/hunspell/en_US.dic')
+			if @lang == "de"
+				# Hunspell dictionary has to be converted to UTF-8, better create an own dictionary
+				sps.push Hunspell.new('/usr/share/hunspell/de_DE.aff', '/tmp/de_DE.dic')
+			end
+		rescue
+			return
+		end
+		words = Array.new
+		hdoc = Nokogiri::HTML.parse @html
+		hdoc.search(".//pre[@class='pygments']").remove
+		hdoc.search(".//div[@class='listingblock']").remove
+		hdoc.search(".//code").remove
+		hdoc.search(".//script").remove
+		content  = hdoc.css("body main")
+		content.search("//text()").each { |node|
+			$stderr.puts node.to_s
+			n = node.to_s
+			n = n.to_s.gsub(/—/, " ")
+			n = n.to_s.gsub(/=/, " ")
+			n = n.gsub(/-/, " ")
+			n = n.gsub(/–/, " ")
+			n = n.gsub(/\"/, " ")
+			n = n.gsub(/\'/, " ")
+			n = n.gsub(/\//, " ")
+			n = n.gsub(/„/, " ")
+			n = n.gsub(/“/, " ")
+			n = n.gsub(/bzw\./, " ")
+			n = n.gsub(/z\.B\./, " ")
+			n = n.gsub(/ggf\./, " ")
+			n = n.gsub(/\./, " ")
+			n = n.gsub(/\;/, " ")
+			n = n.gsub(/\!/, " ")
+			n = n.gsub(/\?/, " ")
+			n = n.gsub(/,/, " ")
+			n = n.gsub(/\:/, " ")
+			n = n.gsub(/-/, " ")
+			n = n.gsub(/-/, " ")
+			n = n.gsub(/\(/, " ")
+			n = n.gsub(/\)/, " ")
+			n = n.gsub(/…/, " ")
+			n = n.gsub(/&/, " ")
+			n = n.gsub(/ /, " ")
+			n = n.gsub(/ /, " ")
+			n.strip.split(/\s+/).each { |w|
+				words.push w.strip unless w.strip == ""
+			}
+		}
+		words.uniq.each { |w|
+			checkw = w.strip
+			valid = false
+			sps.each { |sp|
+				valid = true if sp.spellcheck(checkw.strip) == true
+				valid = true if sp.spellcheck(checkw.strip.downcase) == true
+			}
+			puts "+#{checkw}+" if valid == false
+			@misspelled.push(checkw.strip) if valid == false
+		}
 	end
 	
 	# Read an existing file from the cache directory or rebuild if necessary
@@ -394,8 +455,8 @@ class SingleDocFile
 			}
 		end
 		@html = File.read(outfile)
-		check_xml
 		check_spelling
+		check_xml
 		@blocked = false
 	end
 	
@@ -434,7 +495,7 @@ class SingleDocFile
 				head.add_child("<style>\n" + File.read(c) + "\n</style>\n") if File.file? c
 			}
 			broken_links = check_links hdoc
-			if @errors.size > 0 || broken_links.size > 0
+			if @errors.size > 0 || broken_links.size > 0 || @misspelled.size > 0
 				enode = "<div id='docserveerrors'>"
 				enode += "<h3>Asciidoctor errors</h3><p class='errmono'>" + @errors.join("<br />") +  "</p>" if @errors.size > 0
 				if broken_links.size > 0
@@ -451,11 +512,16 @@ class SingleDocFile
 					}
 					enode += "</ul>"
 				end
+				if @misspelled.size > 0
+					enode += "<h3>Misspelled or unknown words</h3><p>"
+					enode += @misspelled.join(", ")
+					enode += "</p>"
+				end
 				enode += "</div>\n"
 				begin 
 					cnode.prepend_child enode
 				rescue
-					$stderr.puts "Preable not found!"
+					$stderr.puts "Preamble not found!"
 				end
 			end
 			mcont = hdoc.css("div[class='main-nav__content']")[0]
