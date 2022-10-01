@@ -311,8 +311,10 @@ class SingleDocFile
 		return broken_links
 	end
 	
+	# Read the includes ans also read ignorewords
 	def read_includes
 		@includes = Array.new
+		@ignored = Array.new
 		@mtime = File.mtime($basepath + @filename)
 		File.open($basepath + @filename).each { |line|
 			if line =~ /include::(.*?)\[/
@@ -324,6 +326,10 @@ class SingleDocFile
 					$stderr.puts "Include file is missing: #{ipath}"
 				end
 				@includes.push ipath
+			end
+			if line =~ /\/\/(\s*?)IGNORE/
+				ltoks = line.strip.split
+				@ignored = @ignored + ltoks[2..-1]
 			end
 		}
 	end
@@ -398,6 +404,7 @@ class SingleDocFile
 		words.uniq.sort.each { |w|
 			checkw = w.strip
 			valid = false
+			valid = true if @ignored.include? checkw.strip
 			sps.each { |sp|
 				valid = true if sp.spellcheck(checkw.strip) == true
 				valid = true if sp.spellcheck(checkw.strip.downcase) == true
