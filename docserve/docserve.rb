@@ -29,6 +29,7 @@ $cfgfile = nil
 $injectcss = []
 $injectjs = []
 $checklinks = 1
+$spelling = 1
 
 # Cache files here
 $cachedfiles = Hash.new
@@ -38,6 +39,9 @@ $cachedincludes = Hash.new
 $cachedlinks = Hash.new
 # Cache the glossary
 $cachedglossary = Hash.new
+# Prepare dictionaries
+$dictionaries = Hash.new
+
 # FIXME later: Currently we are limited to one branch
 $branches = "localdev"
 $latest = "localdev"
@@ -81,6 +85,7 @@ def create_config
 	opts.on('--inject-css', :REQUIRED) { |i| $injectcss = i.split(",") }
 	opts.on('--inject-js', :REQUIRED) { |i| $injectjs = i.split(",") }
 	opts.on('--check-links', :REQUIRED) { |i| $checklinks = i.to_i}
+	opts.on('--spelling', :REQUIRED) { |i| $spelling = i.to_i}
 	opts.parse!
 	# Try to find a config file
 	# 1. command line 
@@ -100,6 +105,7 @@ def create_config
 		$injectcss = jcfg["inject-css"] unless jcfg["inject-css"].nil?
 		$injectjs = jcfg["inject-js"] unless jcfg["inject-js"].nil?
 		$checklinks = jcfg["check-links"] unless jcfg["check-links"].nil?
+		$checklinks = jcfg["spelling"] unless jcfg["spelling"].nil?
 		$stderr.puts jcfg
 	end
 	[ $templates, $basepath, $cachedir ].each { |o|
@@ -198,6 +204,38 @@ def prepare_glossary
 		}
 		
 	}
+end
+
+# Prepare spellchecker
+def prepare_hunspell
+	[ "de", "en" ].each { |l| $dictionaries[l] = Array.new }
+	return if $spelling < 1
+	# Require a cache directory
+	return if $cachedir.nil?
+	begin
+		d = Hunspell.new('/usr/share/hunspell/en_US.aff', '/usr/share/hunspell/en_US.dic')
+		$dictionaries["en"].push d
+		$dictionaries["de"].push d
+		system("iconv -f ISO-8859-15 -t UTF-8 -o \"#{$cachedir}/de_DE.dic\" /usr/share/hunspell/de_DE.dic")
+		# Hunspell dictionary has to be converted to UTF-8, better create an own dictionary
+		$dictionaries["de"].push Hunspell.new('/usr/share/hunspell/de_DE.aff', $cachedir + "/de_DE.dic")
+	rescue
+		# No sense to continue from here
+		return
+	end
+	begin
+		d = Hunspell.new('/usr/share/hunspell/en_US.aff', $basepath + '/testing/hunspell/brandnames.dic')
+		$dictionaries["en"].push d
+		$dictionaries["de"].push d
+	rescue
+		# Do nothing.
+	end
+	begin
+		$dictionaries["de"].push Hunspell.new('/usr/share/hunspell/de_DE.aff', $basepath + "/testing/hunspell/extra_de.dic") if File.exists?($basepath + "/testing/hunspell/extra_de.dic")
+		$dictionaries["en"].push Hunspell.new('/usr/share/hunspell/en_US.aff', $basepath + "/testing/hunspell/extra_en.dic") if File.exists?($basepath + "/testing/hunspell/extra_en.dic")
+	rescue
+		# Do nothing
+	end
 end
 
 def get_glossary(lang, id)
@@ -357,29 +395,8 @@ class SingleDocFile
 	
 	def check_spelling
 		@misspelled = Array.new
-		sps = []
-		begin
-			sps.push Hunspell.new('/usr/share/hunspell/en_US.aff', '/usr/share/hunspell/en_US.dic')
-			if @lang == "de"
-				# Hunspell dictionary has to be converted to UTF-8, better create an own dictionary
-				sps.push Hunspell.new('/usr/share/hunspell/de_DE.aff', '/tmp/de_DE.dic')
-			end
-		rescue
-			return
-		end
-		# Load our own dictionary with brandnames and our terms
-		begin
-			sps.push Hunspell.new('/usr/share/hunspell/en_US.aff', $basepath + '/testing/hunspell/brandnames.dic')
-		rescue
-		end
-		begin
-			if @lang == "de"
-				sps.push Hunspell.new('/usr/share/hunspell/de_DE.aff', $basepath + "/testing/hunspell/extra_#{@lang}.dic")
-			else
-				sps.push Hunspell.new('/usr/share/hunspell/en_US.aff', $basepath + "/testing/hunspell/extra_#{@lang}.dic")
-			end
-		rescue
-		end
+		return if $spelling < 1
+		sps = $dictionaries[@lang]
 		words = Array.new
 		hdoc = Nokogiri::HTML.parse @html
 		hdoc.search(".//div[@class='main-nav__content']").remove
@@ -627,5 +644,6 @@ trap("INT") {
 create_config
 prepare_cache
 prepare_menu
+prepare_hunspell
 # prepare_glossary
 server.start
