@@ -382,6 +382,7 @@ class SingleDocFile
 		end
 		words = Array.new
 		hdoc = Nokogiri::HTML.parse @html
+		hdoc.search(".//div[@class='main-nav__content']").remove
 		hdoc.search(".//pre[@class='pygments']").remove
 		hdoc.search(".//div[@class='listingblock']").remove
 		hdoc.search(".//div[@class='dropdown__language']").remove
