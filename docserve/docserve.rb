@@ -30,6 +30,7 @@ $injectcss = []
 $injectjs = []
 $checklinks = 1
 $spelling = 1
+$lunr = Hash.new # Try to retrieve the lunr index from docs.dev or docs
 
 # Cache files here
 $cachedfiles = Hash.new
@@ -238,6 +239,25 @@ def prepare_hunspell
 	end
 end
 
+def get_lunr
+	[ "de", "en" ].each { |l|
+		[ "http://docs.dev.tribe29.com/master/", "https://docs.checkmk.com/master/" ].each { |u|
+			if $lunr[l].nil?
+				begin
+					headers = nil
+					url = URI(u + "lunr.index." + l + ".js")
+					resp = Net::HTTP.get_response(url)
+					$stderr.puts resp
+					$stderr.puts resp.body
+					$lunr[l] = resp.body
+				rescue
+					$stderr.puts "Accessing lunr index via #{u} failed"
+				end
+			end
+		}
+	}
+end
+
 def get_glossary(lang, id)
 	return $cachedglossary[lang][id].to_s
 end
@@ -410,7 +430,8 @@ class SingleDocFile
 			$stderr.puts node.to_s
 			n = node.to_s
 			[ /—/, /=/, /-/, /–/, /\"/, /\'/, /\//, /„/, /“/,
-			  /bspw\./, /bzw\./, /z\.B\./, /ggf\./, /\./, /\;/, /\!/, /\?/,
+			  /bspw\./, /bzw\./, /z\.B\./, /ggf\./, /bzgl\./,
+			  /\./, /\;/, /\!/, /\?/,
 			  /,/, /\:/, /-/, /-/, /\(/, /\)/, /…/, /&/, / /, / /,
 			  /#/, /’/, /‘/, / ​/ ].each { |r|
 				n = n.gsub(r, " ")
@@ -611,6 +632,10 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 			elsif ptoks.include?("favicon.ico")
 				html = File.read __dir__ + "/" + ptoks[-1]
 				ctype= $mimetypes["ico"]
+			elsif ptoks.include?("lunr.index.en.js") || ptoks.include?("lunr.index.de.js")
+				ttoks = ptoks[-1].split(".")
+				html = $lunr[ttoks[2]]
+				ctype= $mimetypes["js"]
 			elsif ptoks.include?("last_change")
 				# Assume path like "last_change/en/agent_linux.html"
 				html_path = "/latest/" + ptoks[-2] + "/" + ptoks[-1]
@@ -645,5 +670,6 @@ create_config
 prepare_cache
 prepare_menu
 prepare_hunspell
+get_lunr
 # prepare_glossary
 server.start
