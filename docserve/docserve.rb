@@ -219,7 +219,11 @@ def prepare_hunspell
 		$dictionaries["de"].push d
 		system("iconv -f ISO-8859-15 -t UTF-8 -o \"#{$cachedir}/de_DE.dic\" /usr/share/hunspell/de_DE.dic")
 		# Hunspell dictionary has to be converted to UTF-8, better create an own dictionary
-		$dictionaries["de"].push Hunspell.new('/usr/share/hunspell/de_DE.aff', $cachedir + "/de_DE.dic")
+		if File.exists?($cachedir + "/de_DE.dic")
+			$dictionaries["de"].push Hunspell.new('/usr/share/hunspell/de_DE.aff', $cachedir + "/de_DE.dic")
+		else
+			$dictionaries["de"].push Hunspell.new('/usr/share/hunspell/de_DE.aff',  "/usr/share/hunspell/de_DE.dic")
+		end
 	rescue
 		# No sense to continue from here
 		return
