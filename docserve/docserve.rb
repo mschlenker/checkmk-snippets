@@ -233,6 +233,7 @@ def prepare_hunspell
 	return if $cachedir.nil?
 	begin
 		d = Hunspell.new('/usr/share/hunspell/en_US.aff', '/usr/share/hunspell/en_US.dic')
+		$stderr.puts("hunspell: using /usr/share/hunspell/en_US.dic with /usr/share/hunspell/en_US.aff")
 		$dictionaries["en"].push d
 		$dictionaries["de"].push d
 		unless monkey_search("/usr/share/hunspell/de_DE.dic")
@@ -242,8 +243,10 @@ def prepare_hunspell
 		# Hunspell dictionary has to be converted to UTF-8, better create an own dictionary
 		if File.exists?($cachedir + "/de_DE.dic")
 			$dictionaries["de"].push Hunspell.new('/usr/share/hunspell/de_DE.aff', $cachedir + "/de_DE.dic")
+			$stderr.puts("hunspell: using #{$cachedir}/de_DE.dic with /usr/share/hunspell/de_DE.aff")
 		else
 			$dictionaries["de"].push Hunspell.new('/usr/share/hunspell/de_DE.aff',  "/usr/share/hunspell/de_DE.dic")
+			$stderr.puts("hunspell: using /usr/share/hunspell/de_DE.dic with /usr/share/hunspell/de_DE.aff")
 		end
 	rescue
 		# No sense to continue from here
@@ -251,14 +254,21 @@ def prepare_hunspell
 	end
 	begin
 		d = Hunspell.new('/usr/share/hunspell/en_US.aff', $basepath + '/testing/hunspell/brandnames.dic')
+		$stderr.puts("hunspell: using #{$basepath}/testing/hunspell/brandnames.dic with /usr/share/hunspell/en_US.aff")
 		$dictionaries["en"].push d
 		$dictionaries["de"].push d
 	rescue
 		# Do nothing.
 	end
 	begin
-		$dictionaries["de"].push Hunspell.new('/usr/share/hunspell/de_DE.aff', $basepath + "/testing/hunspell/extra_de.dic") if File.exists?($basepath + "/testing/hunspell/extra_de.dic")
-		$dictionaries["en"].push Hunspell.new('/usr/share/hunspell/en_US.aff', $basepath + "/testing/hunspell/extra_en.dic") if File.exists?($basepath + "/testing/hunspell/extra_en.dic")
+		if File.exists?($basepath + "/testing/hunspell/extra_de.dic")
+			$dictionaries["de"].push Hunspell.new('/usr/share/hunspell/de_DE.aff', $basepath + "/testing/hunspell/extra_de.dic") if File.exists?($basepath + "/testing/hunspell/extra_de.dic")
+			$stderr.puts("hunspell: using #{$basepath}/testing/hunspell/extra_de.dic with /usr/share/hunspell/de_DE.aff")
+		end
+		if File.exists?($basepath + "/testing/hunspell/extra_en.dic")
+			$dictionaries["en"].push Hunspell.new('/usr/share/hunspell/en_US.aff', $basepath + "/testing/hunspell/extra_en.dic")
+			$stderr.puts("hunspell: using #{$basepath}/testing/hunspell/extra_en.dic with /usr/share/hunspell/en_US.aff")
+		end
 	rescue
 		# Do nothing
 	end
