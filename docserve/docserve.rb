@@ -207,6 +207,24 @@ def prepare_glossary
 	}
 end
 
+# Check whether the german dictionary conains "Äffin" (female monkey) in the correct character set
+def monkey_search(file)
+	return false unless File.exists?(file)
+	File.open(file).each { |line| 
+		begin
+			if line =~ /^Äffin/
+				$stderr.puts "Found the female monkey!"
+				$stderr.puts line
+				return true
+			end
+		rescue
+			# Most probably an error with the charset?
+			return false
+		end
+	}
+	return false
+end
+
 # Prepare spellchecker
 def prepare_hunspell
 	[ "de", "en" ].each { |l| $dictionaries[l] = Array.new }
@@ -217,7 +235,10 @@ def prepare_hunspell
 		d = Hunspell.new('/usr/share/hunspell/en_US.aff', '/usr/share/hunspell/en_US.dic')
 		$dictionaries["en"].push d
 		$dictionaries["de"].push d
-		system("iconv -f ISO-8859-15 -t UTF-8 -o \"#{$cachedir}/de_DE.dic\" /usr/share/hunspell/de_DE.dic")
+		unless monkey_search("/usr/share/hunspell/de_DE.dic")
+			system("iconv -f ISO-8859-15 -t UTF-8 -o \"#{$cachedir}/de_DE.dic\" /usr/share/hunspell/de_DE.dic")
+			monkey_search($cachedir + "/de_DE.dic")
+		end
 		# Hunspell dictionary has to be converted to UTF-8, better create an own dictionary
 		if File.exists?($cachedir + "/de_DE.dic")
 			$dictionaries["de"].push Hunspell.new('/usr/share/hunspell/de_DE.aff', $cachedir + "/de_DE.dic")
@@ -252,7 +273,7 @@ def get_lunr
 					url = URI(u + "lunr.index." + l + ".js")
 					resp = Net::HTTP.get_response(url)
 					$stderr.puts resp
-					$stderr.puts resp.body
+					# $stderr.puts resp.body
 					$lunr[l] = resp.body
 				rescue
 					$stderr.puts "Accessing lunr index via #{u} failed"
