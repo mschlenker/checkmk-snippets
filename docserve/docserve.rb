@@ -498,23 +498,32 @@ class SingleDocFile
 	end
 	
 	def nicify_startpage(hdoc) # expects HTML tree as Nokogiri object
+		begin
+			# Extract the featured topic overlay
+			featured = Nokogiri::HTML.parse(File.read($basepath + "/" + @lang + "/featured_000.xml"))
+			overlay = featured.css("div[id='topicopaque']")
+			# Extract the new startpage layout
+			landing = Nokogiri::HTML.parse(File.read($basepath + "/" + @lang + "/landingpage.xml"))
+			header = landing.css("div[id='header']")
+			# Extract the column for featured topic
+			ftcol = featured.css("div[id='featuredtopic']")[0]
+			fttgt = landing.css("div[id='featuredtopic']")[0]
+			fttgt.replace(ftcol)
+		rescue
+			# Nothing modified at this point
+			return hdoc
+		end
 		hdoc.search(".//main[@class='home']//div[@id='header']").remove
 		hdoc.search(".//main[@class='home']//div[@id='content']").remove
 		main = hdoc.css("main[class='home']")[0]
-		# Extract the featured topic overlay
-		featured = Nokogiri::HTML.parse(File.read($basepath + "/" + @lang + "/featured_000.xml"))
-		overlay = featured.css("div[id='topicopaque']")
 		main.add_child overlay
-		# Extract the new startpage layout
-		landing = Nokogiri::HTML.parse(File.read($basepath + "/" + @lang + "/landingpage.xml"))
-		header = landing.css("div[id='header']")
 		main.add_child header
+		# Identify the container in the target 
 		content = landing.css("div[id='content']")
 		main.add_child content
-		# Extract the column for featured topic
-		ftcol = featured.css("div[id='featuredtopic']")[0]
-		fttgt = main.css("div[id='featuredtopic']")[0]
-		fttgt.replace(ftcol)
+		# Flip the featured topic
+		#fttgt = main.css("div[id='featuredtopic']")[0]
+		#fttgt.replace(ftcol)
 		return hdoc
 	end
 	
