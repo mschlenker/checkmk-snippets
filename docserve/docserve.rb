@@ -442,7 +442,7 @@ class SingleDocFile
 			# XML files mit column layout and featured topis are treated as includes as well
 			Dir.entries($basepath + "/" + @lang).each { |f|
 				if f =~ /xml$/
-					tmpmtime = File.mtime($basepath + @lang + "/" + f)
+					tmpmtime = File.mtime($basepath + "/" + @lang + "/" + f)
 					latest_include = tmpmtime if tmpmtime > latest_include
 				end
 			}
@@ -502,15 +502,19 @@ class SingleDocFile
 		hdoc.search(".//main[@class='home']//div[@id='content']").remove
 		main = hdoc.css("main[class='home']")[0]
 		# Extract the featured topic overlay
-		featured = Nokogiri::HTML.parse(File.read($basepath + @lang + "/featured_000.xml"))
+		featured = Nokogiri::HTML.parse(File.read($basepath + "/" + @lang + "/featured_000.xml"))
 		overlay = featured.css("div[id='topicopaque']")
 		main.add_child overlay
 		# Extract the new startpage layout
-		landing = Nokogiri::HTML.parse(File.read($basepath + @lang + "/landingpage.xml"))
+		landing = Nokogiri::HTML.parse(File.read($basepath + "/" + @lang + "/landingpage.xml"))
 		header = landing.css("div[id='header']")
 		main.add_child header
 		content = landing.css("div[id='content']")
 		main.add_child content
+		# Extract the column for featured topic
+		ftcol = featured.css("div[id='featuredtopic']")[0]
+		fttgt = main.css("div[id='featuredtopic']")[0]
+		fttgt.replace(ftcol)
 		return hdoc
 	end
 	
