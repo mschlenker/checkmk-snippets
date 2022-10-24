@@ -8,3 +8,237 @@
 .errmono {
 	font-family: monospace;
 }
+
+/* copy of modified addons.css from checkmkdocs-styling - merge later */
+
+#nagolddocsouter {
+	position: fixed;
+	right: 20px;
+	top: 90px;
+	z-index: 100;
+	width: 280px;
+}
+
+#nagolddocsinner {
+	position: relative;
+	padding: 1rem;
+	padding-bottom: 0rem;
+	font-family: helvetica, tahoma;
+	border: 2px solid red;	
+	margin:0 auto;
+	/* -webkit-border-radius: 10px;
+	-moz-border-radius: 10px;
+	border-radius: 10px; */
+	background: white;
+	box-shadow: 5px 5px 10px 6px rgba(0,0,0,0.30);
+}
+
+#nagolddocsinner:before {
+	content: ' ';
+	position: absolute;
+	width: 0;
+	height: 0;
+	left: 68px;
+	top: -17px;
+	border-left: 14px solid transparent;
+	border-right: 14px solid transparent;
+	border-bottom: 17px solid red;
+}
+
+#nagolddocsinner:after {
+	content: ' ';
+	position: absolute;
+	width: 0;
+	height: 0;
+	left: 71px;
+	top: -14px;
+	border-left: 11px solid transparent;
+	border-right: 11px solid transparent;
+	border-bottom: 14px solid white;
+}
+
+#nagolddocsinner p.right {
+	text-align: right;
+}
+
+
+
+/* new 2022/10/25 */
+
+.morelink { text-align: right; }
+.outercols {
+	/* clear: both; */
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	width: 100%;
+}
+.outercols .col {
+	/* float: left;
+	width: 33%;
+	margin-left: 0px;
+	margin-right: 0px; */
+	flex: 33.3%;
+}
+/* .outercols:after {
+	content: "";
+	display: table;
+	clear: both;
+} */
+.innercols {
+	display: flex;
+}
+.innercols .col  {
+	flex: 50%; 
+}
+
+
+
+.lbox img {
+	float: right;
+}
+.lbox {
+	clear: both;
+}
+img.ytpreview { width: 100%; }
+
+#topicopaque {
+	position: absolute;
+	top: 0px; left:
+	0px; height: 100%;
+	width: 100%;
+	background-color:rgba(255,255,255,0.90); 
+	z-index: 129;
+	display: none;
+}
+
+#topicshadow {
+	margin: 50px;
+	/* margin-top: 80px; */
+	background-color:
+	whitesmoke;
+	box-shadow: 5px 5px 10px 6px rgba(0,0,0,0.15);
+	padding: 20px;
+}
+
+div.ytpreview {
+	padding: 0px;
+	position: relative;
+	float: right;
+}
+
+div.ytwrapper {
+	max-width: 480px;
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: 20px;
+	margin-bottom: 20px;
+}
+
+div.ytvideo {
+	position: relative;
+	padding-bottom: 56.25%; /* - 16:9 aspect ratio (most common) */
+	/* padding-bottom: 62.5%; - 16:10 aspect ratio */
+	/* padding-bottom: 75%; - 4:3 aspect ratio */
+	padding-top: 30px;
+	height: 0;
+	overflow: hidden;
+}
+
+div.ytvideo iframe,
+div.ytvideo object,
+div.ytvideo embed {
+	border: 0;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+}
+
+/* remove upper case for h3 */
+
+.main-nav h3 {
+	text-transform: none;
+}
+
+
+/* responsive stuff for smaller displays */
+
+@media only screen and (max-width: 1420px) {
+	
+}
+
+@media only screen and (max-width: 1200px) {
+	#topicshadow {
+		margin: 15px;
+		margin-top: 15px;
+		padding: 8px;
+	}
+	img.ytpreview { 
+		width: 90%;
+		display: block;
+		margin-left: auto;
+		margin-right: auto;
+	}
+	h3, h4 {
+		margin-top: 15px;
+	}
+}
+
+@media only screen and (max-width: 992px) {
+	#nagolddocsinner:before {
+		content: ' ';
+		position: absolute;
+		width: 0;
+		height: 0;
+		left: 148px;
+		top: -17px;
+	}
+	#nagolddocsinner:after {
+		content: ' ';
+		position: absolute;
+		width: 0;
+		height: 0;
+		left: 151px;
+		top: -14px;
+	}
+	/*  columns for featured topics are stacked */
+	.outercols {
+		flex-wrap: nowrap;
+		flex-direction: column;
+	}
+	.outercols .col {
+		width: 100%;
+	}
+	.innercols {
+		flex-wrap: nowrap;
+		flex-direction: column;
+	}
+	.innercols .col  {
+		width: 100%; 
+	}
+	#topicshadow {
+		margin: 3px;
+		margin-top: 0px;
+		padding: 4px;
+	}
+	img.ytpreview { 
+		width: 80%;
+		display: block;
+		margin-left: auto;
+		margin-right: auto;
+	}
+	h3, h4 {
+		margin-top: 15px;
+	}
+}
+
+@media only screen and (max-width: 768px) {
+	
+}
+
+@media only screen and (max-width: 576px) {
+   
+}

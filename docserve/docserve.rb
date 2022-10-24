@@ -438,6 +438,15 @@ class SingleDocFile
 				@missing_includes.push i
 			end
 		}
+		if @filename =~ /index\.asciidoc$/
+			# XML files mit column layout and featured topis are treated as includes as well
+			Dir.entries($basepath + "/" + @lang).each { |f|
+				if f =~ /xml$/
+					tmpmtime = File.mtime($basepath + @lang + "/" + f)
+					latest_include = tmpmtime if tmpmtime > latest_include
+				end
+			}
+		end
 		return latest_include
 	end
 	
@@ -486,6 +495,23 @@ class SingleDocFile
 			puts "+#{checkw}+" if valid == false
 			@misspelled.push(checkw.strip) if valid == false
 		}
+	end
+	
+	def nicify_startpage(hdoc) # expects HTML tree as Nokogiri object
+		hdoc.search(".//main[@class='home']//div[@id='header']").remove
+		hdoc.search(".//main[@class='home']//div[@id='content']").remove
+		main = hdoc.css("main[class='home']")[0]
+		# Extract the featured topic overlay
+		featured = Nokogiri::HTML.parse(File.read($basepath + @lang + "/featured_000.xml"))
+		overlay = featured.css("div[id='topicopaque']")
+		main.add_child overlay
+		# Extract the new startpage layout
+		landing = Nokogiri::HTML.parse(File.read($basepath + @lang + "/landingpage.xml"))
+		header = landing.css("div[id='header']")
+		main.add_child header
+		content = landing.css("div[id='content']")
+		main.add_child content
+		return hdoc
 	end
 	
 	# Read an existing file from the cache directory or rebuild if necessary
@@ -610,6 +636,12 @@ class SingleDocFile
 			$injectjs.each { |j|
 				body.add_child("<script>\n" + File.read(j) + "\n</script>\n") if File.file? j
 			}
+			# Kick the hiring banner:
+			hdoc.search(".//div[@id='hiring-banner']").remove
+			if @filename =~ /index\.asciidoc$/
+				# Remove the content of the main node:
+				hdoc = nicify_startpage(hdoc)
+			end
 			html = hdoc.to_s # html(:indent => 4)
 		end
 		return html

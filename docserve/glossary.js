@@ -18,9 +18,9 @@ for (var i=0; i<links.length; i++) {
 		} else if (href.includes("://")) {
 			console.log("Ignore protocol link: " + href);
 		} else {
-			links[i].addEventListener('mouseenter', mouseOverPreview, false);
-			links[i].addEventListener('mouseleave', waitOverlayClose, false);
-			console.log("Add link overlay for: " + href);
+			// links[i].addEventListener('mouseenter', mouseOverPreview, false);
+			// links[i].addEventListener('mouseleave', waitOverlayClose, false);
+			// console.log("Add link overlay for: " + href);
 		}
 	} else {
 		console.log("No href found!");
@@ -178,4 +178,18 @@ function displayPreview(html, x, y) {
 	// Add enter event listener for the box
 	box.addEventListener('mouseenter', enterOverlayBox, false);
 	box.addEventListener('mouseleave', exitOverlayBox, false);
+}
+
+// Open and close featured topic
+var featured = document.getElementById("featuredtopic");
+featured.addEventListener("click", openFeaturedOverlay, false);
+
+function openFeaturedOverlay() {
+	console.log("Clicked on featured"); 
+	document.getElementById("topicopaque").style.display = "block";
+	return false;
+}
+function hideFeaturedTopic() {
+	document.getElementById("topicopaque").style.display = "none";
+	return false;
 }
