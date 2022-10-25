@@ -183,6 +183,12 @@ function displayPreview(html, x, y) {
 // Open and close featured topic
 var featured = document.getElementById("featuredtopic");
 featured.addEventListener("click", openFeaturedOverlay, false);
+var opaque = document.getElementById("topicopaque");
+opaque.addEventListener("click", hideFeaturedTopic, false);
+var topicoverlay = document.getElementById("topicshadow");
+topicoverlay.addEventListener("click", function(e) {
+	e.stopPropagation();
+});
 
 function openFeaturedOverlay() {
 	console.log("Clicked on featured"); 
