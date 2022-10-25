@@ -104,9 +104,8 @@
 img.ytpreview { width: 100%; }
 
 #topicopaque {
-	position: absolute;
-	top: 0px; left:
-	0px; height: 100%;
+	position: absolute; top: 0px; left: 0px; 
+	height: 100%;
 	width: 100%;
 	background-color:rgba(255,255,255,0.90); 
 	z-index: 129;
@@ -114,10 +113,10 @@ img.ytpreview { width: 100%; }
 }
 
 #topicshadow {
+	position: relative;
 	margin: 50px;
-	/* margin-top: 80px; */
-	background-color:
-	whitesmoke;
+	margin-top: 30px;
+	background-color: whitesmoke;
 	box-shadow: 5px 5px 10px 6px rgba(0,0,0,0.15);
 	padding: 20px;
 }
@@ -164,7 +163,17 @@ div.ytvideo embed {
 	text-transform: none;
 }
 
-
+@media only screen and (min-width: 1650px) and (min-height: 980px) {
+	#topicopaque {
+		position: absolute; top: 0px; left: 0px; 
+	}
+	#topicshadow {
+		margin: 50px;
+		margin-top: 0px;
+		position: absolute; top: 50%;
+		transform: translate(0%, -50%);
+	}
+}
 /* responsive stuff for smaller displays */
 
 @media only screen and (max-width: 1420px) {
