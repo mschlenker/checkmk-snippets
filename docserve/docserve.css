@@ -80,6 +80,8 @@
 	margin-left: 0px;
 	margin-right: 0px; */
 	flex: 33.3%;
+	padding-left: 0px;
+	padding-right: 40px;
 }
 /* .outercols:after {
 	content: "";
