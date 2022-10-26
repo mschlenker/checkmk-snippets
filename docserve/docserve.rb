@@ -11,6 +11,7 @@ require 'json'
 require 'rexml/document'
 require 'net/http'
 require 'net/https'
+require 'uri'
 begin
 	require 'hunspell'
 rescue LoadError
@@ -207,7 +208,7 @@ def prepare_glossary
 	}
 end
 
-# Check whether the german dictionary conains "Äffin" (female monkey) in the correct character set
+# Check whether the german dictionary contains "Äffin" (female monkey) in the correct character set
 def monkey_search(file)
 	return false unless File.exists?(file)
 	File.open(file).each { |line| 
@@ -439,9 +440,10 @@ class SingleDocFile
 			end
 		}
 		if @filename =~ /index\.asciidoc$/
-			# XML files mit column layout and featured topis are treated as includes as well
+			# XML files mit column layout and featured topics are treated as includes as well
+			# TXT files with most recent updated etc. might be manually updated
 			Dir.entries($basepath + "/" + @lang).each { |f|
-				if f =~ /xml$/
+				if f =~ /xml$/ || f =~ /txt$/
 					tmpmtime = File.mtime($basepath + "/" + @lang + "/" + f)
 					latest_include = tmpmtime if tmpmtime > latest_include
 				end
@@ -521,10 +523,66 @@ class SingleDocFile
 		# Identify the container in the target 
 		content = landing.css("div[id='content']")
 		main.add_child content
-		# Flip the featured topic
-		#fttgt = main.css("div[id='featuredtopic']")[0]
-		#fttgt.replace(ftcol)
+		# Get autolists
+		[ "recently_added", "recently_updated", "most_visited" ].each { |f|
+			h, ul, hdoc = get_autolist f, hdoc
+			lists = hdoc.css("div[id='autolists']")[0]
+			lists.add_child h
+			lists.add_child ul
+		}
+		h, ul, hdoc = get_most_searched hdoc
+		lists = hdoc.css("div[id='autolists']")[0]
+		lists.add_child h
+		lists.add_child ul
 		return hdoc
+	end
+	
+	def get_most_searched(hdoc)
+		h = nil
+		ul = Nokogiri::XML::Node.new "ul", hdoc
+		File.open($basepath + "/" + @lang + "/most_searched.txt").each { |line|
+			if line =~ /^\#/ || line.strip == ""
+				# do nothing
+			elsif line =~ /^=\s/
+				h = Nokogiri::XML::Node.new "h4", hdoc
+				h.content = line.strip.sub(/^=\s/, "")
+			else
+				li = Nokogiri::XML::Node.new "li", hdoc
+				a = Nokogiri::XML::Node.new "a", hdoc
+				a.content = line.strip
+				a["href"] = "index.html?" + URI.encode_www_form( [ ["find", line.strip] ] ) 
+				li.add_child a
+				ul.add_child li
+			end
+		}
+		return h, ul, hdoc
+	end
+	
+	# Convert the auto generated file list to HTML list
+	def get_autolist(name, hdoc)
+		h = nil
+		ul = Nokogiri::XML::Node.new "ul", hdoc
+		File.open($basepath + "/" + @lang + "/" + name + ".txt").each { |line|
+			if line =~ /^\#/ || line.strip == ""
+				# do nothing
+			elsif line =~ /^=\s/
+				h = Nokogiri::XML::Node.new "h4", hdoc
+				h.content = line.strip.sub(/^=\s/, "")
+			else
+				fname = line.strip
+				File.open($basepath + "/" + @lang + "/" + fname + ".asciidoc").each { |aline|
+					if aline =~ /^=\s/
+						li = Nokogiri::XML::Node.new "li", hdoc
+						a = Nokogiri::XML::Node.new "a", hdoc
+						a.content = aline.strip.sub(/^=\s/, "").gsub("{CMK}", "Checkmk")
+						a["href"] = fname + ".html"
+						li.add_child a
+						ul.add_child li
+					end
+				}
+			end
+		}
+		return h, ul, hdoc
 	end
 	
 	# Read an existing file from the cache directory or rebuild if necessary
