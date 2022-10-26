@@ -192,6 +192,24 @@ topicoverlay.addEventListener("click", function(e) {
 
 function openFeaturedOverlay() {
 	console.log("Clicked on featured"); 
+	// We have to add the iframe if not already present
+	var container = document.getElementById("videocontainer");
+	var iframes = container.getElementsByTagName("iframe");
+	if (iframes.length < 1) {
+		var a = container.getElementsByTagName("a")[0];
+		var link = a.getAttribute("href");
+		var title = a.getAttribute("title");
+		var iframe = document.createElement("iframe");
+		container.removeChild(a);
+		iframe.setAttribute("width", "400");
+		iframe.setAttribute("height", "225");
+		iframe.setAttribute("frameborder", "0");
+		iframe.setAttribute("allow", "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture");
+		iframe.setAttribute("allowfullscreen", "true");
+		iframe.setAttribute("src", link);
+		iframe.setAttribute("title", title);
+		container.appendChild(iframe);
+	}
 	document.getElementById("topicopaque").style.display = "block";
 	return false;
 }

@@ -540,6 +540,7 @@ class SingleDocFile
 	def get_most_searched(hdoc)
 		h = nil
 		ul = Nokogiri::XML::Node.new "ul", hdoc
+		ul["id"] = "mostsearched"
 		File.open($basepath + "/" + @lang + "/most_searched.txt").each { |line|
 			if line =~ /^\#/ || line.strip == ""
 				# do nothing
@@ -550,7 +551,7 @@ class SingleDocFile
 				li = Nokogiri::XML::Node.new "li", hdoc
 				a = Nokogiri::XML::Node.new "a", hdoc
 				a.content = line.strip
-				a["href"] = "index.html?" + URI.encode_www_form( [ ["find", line.strip] ] ) 
+				a["href"] = "index.html?" + URI.encode_www_form( [ ["find", line.strip], ["origin", "landingpage"], ["fulloverlay", "1"] ] ) 
 				li.add_child a
 				ul.add_child li
 			end
