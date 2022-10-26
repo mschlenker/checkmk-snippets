@@ -552,6 +552,7 @@ class SingleDocFile
 				a = Nokogiri::XML::Node.new "a", hdoc
 				a.content = line.strip
 				a["href"] = "index.html?" + URI.encode_www_form( [ ["find", line.strip], ["origin", "landingpage"], ["fulloverlay", "1"] ] ) 
+				a["onclick"] = "openTheSearch(\"#{line.strip}\");return false;";
 				li.add_child a
 				ul.add_child li
 			end

@@ -217,3 +217,12 @@ function hideFeaturedTopic() {
 	document.getElementById("topicopaque").style.display = "none";
 	return false;
 }
+
+function openTheSearch(txt) {
+	console.log(txt);
+	var searchField = document.getElementsByClassName("header-top__search")[0];
+	searchField.value = txt;
+	searchWhileType();
+	showFullList();
+	return false;
+}
