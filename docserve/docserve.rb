@@ -539,8 +539,8 @@ class SingleDocFile
 	
 	def get_most_searched(hdoc)
 		h = nil
-		ul = Nokogiri::XML::Node.new "ul", hdoc
-		ul["id"] = "mostsearched"
+		p = Nokogiri::XML::Node.new "p", hdoc
+		p["id"] = "mostsearched"
 		File.open($basepath + "/" + @lang + "/most_searched.txt").each { |line|
 			if line =~ /^\#/ || line.strip == ""
 				# do nothing
@@ -548,16 +548,18 @@ class SingleDocFile
 				h = Nokogiri::XML::Node.new "h4", hdoc
 				h.content = line.strip.sub(/^=\s/, "")
 			else
-				li = Nokogiri::XML::Node.new "li", hdoc
+				# li = Nokogiri::XML::Node.new "li", hdoc
 				a = Nokogiri::XML::Node.new "a", hdoc
 				a.content = line.strip
 				a["href"] = "index.html?" + URI.encode_www_form( [ ["find", line.strip], ["origin", "landingpage"], ["fulloverlay", "1"] ] ) 
 				a["onclick"] = "openTheSearch(\"#{line.strip}\");return false;";
-				li.add_child a
-				ul.add_child li
+				# li.add_child a
+				p.add_child a
+				t = Nokogiri::XML::Text.new " ", hdoc
+				p.add_child t
 			end
 		}
-		return h, ul, hdoc
+		return h, p, hdoc
 	end
 	
 	# Convert the auto generated file list to HTML list
