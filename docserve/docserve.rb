@@ -368,13 +368,15 @@ class SingleDocFile
 				broken_links[href] = $cachedlinks[href] unless $cachedlinks[href] == ""
 			elsif href =~ /^\./ || href =~ /^\// || href == "" || href.nil? || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /checkmk\.com\// || href =~ /^mailto/
 				$cachedlinks[href] = ""
-			elsif href =~ /^[0-9a-z._-]*$/ 
+			elsif href =~ /^[0-9a-z._-]+$/ 
 				# Check local links against file list:
 				fname = "/latest/" + @lang + "/" + href
 				if $allowed.include? fname
-					$cachedlinks[href] = ""
+					$stderr.puts "Found link #{fname} in list of allowed files!"
 				else
-					$cachedlinks[href] = "404 – File not found"
+					$stderr.puts "Missing #{fname} in list of allowed files!"
+					# $cachedlinks[fname] = "404 – File not found"
+					broken_links[@lang + "/" + href] = "404 – File not found"
 				end
 			else
 				begin
@@ -409,6 +411,10 @@ class SingleDocFile
 					broken_links[href] = $cachedlinks[href]
 				end
 			end
+		}
+		$stderr.puts "Found #{broken_links.size} broken links."
+		broken_links.each { |k,v|
+			$stderr.puts "#{k}: #{v}"
 		}
 		return broken_links
 	end
@@ -679,7 +685,9 @@ class SingleDocFile
 				head.add_child("<style>\n" + File.read(c) + "\n</style>\n") if File.file? c
 			}
 			broken_links = check_links hdoc
-			if @errors.size > 0 || broken_links.size > 0 || @misspelled.size > 0
+			total_errors = @errors.size + broken_links.size + @misspelled.size + @missing_includes.size
+			$stderr.puts "Total errors encountered: #{total_errors}"
+			if total_errors > 0
 				enode = "<div id='docserveerrors'>"
 				enode += "<h3>Asciidoctor errors</h3><p class='errmono'>" + @errors.join("<br />") +  "</p>" if @errors.size > 0
 				if broken_links.size > 0
@@ -702,10 +710,12 @@ class SingleDocFile
 					enode += "</p>"
 				end
 				enode += "</div>\n"
-				begin 
-					cnode.prepend_child enode
-				rescue
+				if cnode.nil?
 					$stderr.puts "Preamble not found!"
+					headernode =  hdoc.css("div[id='header']")[0]
+					headernode.add_child enode
+				else
+					cnode.prepend_child enode
 				end
 			end
 			mcont = hdoc.css("div[class='main-nav__content']")[0]
