@@ -366,8 +366,16 @@ class SingleDocFile
 			end
 			if $cachedlinks.has_key? href
 				broken_links[href] = $cachedlinks[href] unless $cachedlinks[href] == ""
-			elsif href =~ /^\./ || href =~ /^\// || href == "" || href.nil? || href =~ /^[0-9a-z._-]*$/ || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /checkmk\.com\// || href =~ /^mailto/
+			elsif href =~ /^\./ || href =~ /^\// || href == "" || href.nil? || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /checkmk\.com\// || href =~ /^mailto/
 				$cachedlinks[href] = ""
+			elsif href =~ /^[0-9a-z._-]*$/ 
+				# Check local links against file list:
+				fname = "/latest/" + @lang + "/" + href
+				if $allowed.include? fname
+					$cachedlinks[href] = ""
+				else
+					$cachedlinks[href] = "404 – File not found"
+				end
 			else
 				begin
 					headers = nil
