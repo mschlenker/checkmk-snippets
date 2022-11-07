@@ -63,6 +63,7 @@ $mimetypes = {
 	"html" => "text/html",
 	"css" => "text/css",
 	"js" => "text/javascript",
+	"ttf" => "font/ttf",
 	"woff" => "font/woff",
 	"woff2" => "font/woff2",
 	"eot" => "application/vnd.ms-fontobject",
