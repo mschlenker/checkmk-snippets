@@ -74,6 +74,10 @@ $mimetypes = {
 	"ico" => "image/vnd.microsoft.icon",
 	"json" => "application/json"
 }
+# Links that are internally used, but redirected externaly.
+$ignorebroken = [
+	"check_plugins_catalog.html"
+]
 
 $allowed = [] # Store a complete list of all request paths
 $html = [] # Store a list of all HTML files
@@ -372,7 +376,9 @@ class SingleDocFile
 			elsif href =~ /^[0-9a-z._-]+$/ 
 				# Check local links against file list:
 				fname = "/latest/" + @lang + "/" + href
-				if $allowed.include? fname
+				if $ignorebroken.include? href
+					$stderr.puts "Ignore #{fname} - this is allowed to be broken."
+				elsif $allowed.include? fname
 					$stderr.puts "Found link #{fname} in list of allowed files!"
 				else
 					$stderr.puts "Missing #{fname} in list of allowed files!"
