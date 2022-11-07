@@ -20,3 +20,23 @@ function handleSubFolderClick() {
 		list.style.display = "none";
 	}
 }
+
+/*
+In deeply nested menues, collapse all siblings.
+*/
+
+function foldAllSiblings() {
+	for (var i=0; i<subheaders.length; i++) {
+		var h3 = subheaders[i].getElementsByTagName("h3")[0];
+		console.log(h3.getAttribute("id"));
+		// Now find the selected item
+		var items = subheaders[i].getElementsByClassName("selected");
+		if (items.length < 1) {
+			// console.log("Found: " + items[0]);
+			var list = h3.parentNode.getElementsByTagName("ul")[0];
+			list.style.display = "none";
+		}
+	}
+}
+
+window.addEventListener('load', (event) => { foldAllSiblings(); });
