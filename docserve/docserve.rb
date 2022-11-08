@@ -31,6 +31,8 @@ $injectcss = []
 $injectjs = []
 $checklinks = 1
 $spelling = 1
+# Pre-build all files (for statistics and faster caching)
+$buildall = 0
 $lunr = Hash.new # Try to retrieve the lunr index from docs.dev or docs
 
 # Cache files here
@@ -43,6 +45,8 @@ $cachedlinks = Hash.new
 $cachedglossary = Hash.new
 # Prepare dictionaries
 $dictionaries = Hash.new
+# Create a list of files to build at boot
+$prebuild = Array.new
 
 # FIXME later: Currently we are limited to one branch
 $branches = "localdev"
@@ -72,7 +76,8 @@ $mimetypes = {
 	"jpeg" => "image/jpeg",
 	"svg" => "image/svg+xml",
 	"ico" => "image/vnd.microsoft.icon",
-	"json" => "application/json"
+	"json" => "application/json",
+	"csv" => "text/csv"
 }
 # Links that are internally used, but redirected externaly.
 $ignorebroken = [
@@ -93,6 +98,7 @@ def create_config
 	opts.on('--inject-js', :REQUIRED) { |i| $injectjs = i.split(",") }
 	opts.on('--check-links', :REQUIRED) { |i| $checklinks = i.to_i}
 	opts.on('--spelling', :REQUIRED) { |i| $spelling = i.to_i}
+	opts.on('--build-all', :REQUIRED) { |i| $buildall = i.to_i}
 	opts.parse!
 	# Try to find a config file
 	# 1. command line 
@@ -113,6 +119,7 @@ def create_config
 		$injectjs = jcfg["inject-js"] unless jcfg["inject-js"].nil?
 		$checklinks = jcfg["check-links"] unless jcfg["check-links"].nil?
 		$checklinks = jcfg["spelling"] unless jcfg["spelling"].nil?
+		$checklinks = jcfg["build-all"] unless jcfg["build-all"].nil?
 		$stderr.puts jcfg
 	end
 	[ $templates, $basepath, $cachedir ].each { |o|
@@ -167,6 +174,8 @@ def create_filelist
 		$allowed.push "/latest/lunr.index.#{lang}.js"
 	}
 	$allowed.push "/favicon.ico"
+	$allowed.push "/errors.csv"
+	$allowed.push "/errors.html"
 	$allowed.push "/latest/index.html"
 	$allowed.push "/latest/"
 	$allowed.push "/latest"
@@ -338,7 +347,8 @@ class SingleDocFile
 	@includes = [] # List of all includes in this file
 	@missing_includes = [] # Includes that could not be found
 	@misspelled = [] # Array of misspelled words
-	
+	@errorline = nil # A CSV line containing errors
+	@html_errorline = nil
 	# Initialize, first read
 	def initialize(filename)
 		@filename = filename
@@ -672,6 +682,8 @@ class SingleDocFile
 		end
 		# Inject the menu, this will recursively also rebuild if necessary
 		html = @html
+		@errorline = nil
+		@html_errorline = nil
 		unless @filename =~ /menu\.asciidoc$/
 			hdoc = Nokogiri::HTML.parse html
 			head  = hdoc.at_css "head"
@@ -695,6 +707,9 @@ class SingleDocFile
 			total_errors = @errors.size + broken_links.size + @misspelled.size + @missing_includes.size
 			$stderr.puts "Total errors encountered: #{total_errors}"
 			if total_errors > 0
+				hname = @filename.sub(/asciidoc$/, 'html')
+				@errorline = "http://localhost:#{$port}/latest#{hname};"
+				@html_errorline = "<tr><td><a href=\"http://localhost:#{$port}/latest#{hname}\" target=\"_blank\">#{hname}</a></td>"
 				enode = "<div id='docserveerrors'>"
 				enode += "<h3>Asciidoctor errors</h3><p class='errmono'>" + @errors.join("<br />") +  "</p>" if @errors.size > 0
 				if broken_links.size > 0
@@ -703,6 +718,11 @@ class SingleDocFile
 						enode += "<li><a href='#{l}' target='_blank'>#{l}</a> (#{p})</li>\n"
 					}
 					enode += "</ul>"
+					@errorline = @errorline + broken_links.size.to_s  + ";"
+					@html_errorline = @html_errorline + "<td>" + broken_links.size.to_s + "</td>"
+				else
+					@errorline = @errorline + "0;"
+					@html_errorline = @html_errorline + "<td>0</td>"
 				end
 				if @missing_includes.size > 0
 					enode += "<h3>Missing include files</h3><ul>"
@@ -710,11 +730,21 @@ class SingleDocFile
 						enode += "<li>#{m}</li>\n"
 					}
 					enode += "</ul>"
+					@errorline = @errorline + @missing_includes.size.to_s  + ";"
+					@html_errorline = @html_errorline + "<td>" + @missing_includes.size.to_s + "</td>"
+				else
+					@errorline = @errorline + "0;"
+					@html_errorline = @html_errorline + "<td>0</td>"
 				end
 				if @misspelled.size > 0
 					enode += "<h3>Misspelled or unknown words</h3><p>"
 					enode += @misspelled.join(", ")
 					enode += "</p>"
+					@errorline = @errorline + @misspelled.size.to_s  + ";\n"
+					@html_errorline = @html_errorline + "<td>" + @misspelled.size.to_s + "</td></tr>\n"
+				else
+					@errorline = @errorline + "0;\n"
+					@html_errorline = @html_errorline + "<td>0</td></tr>\n"
 				end
 				enode += "</div>\n"
 				if cnode.nil?
@@ -746,7 +776,7 @@ class SingleDocFile
 		end
 		return html
 	end
-	attr_accessor :mtime
+	attr_accessor :mtime, :errorline, :html_errorline
 end
 
 class MyServlet < WEBrick::HTTPServlet::AbstractServlet
@@ -799,6 +829,25 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 			elsif ptoks.include?("favicon.ico")
 				html = File.read __dir__ + "/" + ptoks[-1]
 				ctype= $mimetypes["ico"]
+			elsif ptoks.include?("errors.csv")
+				html = "\Filename\";\"Broken links\";\"Missing includes\";\"Spellcheck errors\";\n"
+				$cachedfiles.each { |f, o|
+					unless o.errorline.nil?
+						html = html + o.errorline
+					end
+				}
+				ctype= $mimetypes["csv"]
+			elsif ptoks.include?("errors.html")
+				html = "<!DOCTYPE html>\n<html><head><title>Rabbithole</title></head><body><body>\n" +
+					"<table><tr><td>Filename</td><td>Broken links</td><td>Missing includes</td>" +
+					"<td>Spellcheck errors</td></tr>\n"
+				$cachedfiles.each { |f, o|
+					unless o.html_errorline.nil?
+						html = html + o.html_errorline
+					end
+				}
+				html = html + "</table></body></html>"
+				ctype= $mimetypes["html"]
 			elsif ptoks.include?("lunr.index.en.js") || ptoks.include?("lunr.index.de.js")
 				ttoks = ptoks[-1].split(".")
 				html = $lunr[ttoks[2]]
@@ -807,7 +856,6 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				# Assume path like "last_change/en/agent_linux.html"
 				html_path = "/latest/" + ptoks[-2] + "/" + ptoks[-1]
 				if $cachedfiles.has_key? html_path
-					
 					html = "{ \"last-change\" : " + $cachedfiles[html_path].check_age.to_i.to_s + " }"
 				else
 					html = "{ \"last-change\" : 0 }"
@@ -838,5 +886,23 @@ prepare_cache
 prepare_menu
 prepare_hunspell
 get_lunr
+
+# Pre-build files requested
+if $buildall > 0 
+	create_filelist
+	stime = Time.new.to_i
+	$stderr.puts "requested buildall"
+	$stderr.puts "requested buildall, #{$html.size} documents to build"
+	$html.each { |f|
+		$stderr.puts "requested buildall, building #{f}"
+		filename = f.sub(/html$/, 'asciidoc').sub(/^\/latest/, '')
+		s = SingleDocFile.new filename
+		$cachedfiles[filename] = s
+		html = $cachedfiles[filename].to_html
+	}
+	duration = Time.now.to_i - stime
+	$stderr.puts "requested buildall, done, building took #{duration}s"
+end
+$stderr.puts "docserve is ready now, have fun!"
 # prepare_glossary
 server.start
