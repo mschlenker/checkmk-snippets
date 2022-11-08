@@ -383,7 +383,7 @@ class SingleDocFile
 				else
 					$stderr.puts "Missing #{fname} in list of allowed files!"
 					# $cachedlinks[fname] = "404 – File not found"
-					broken_links[@lang + "/" + href] = "404 – File not found"
+					broken_links["/latest/" + @lang + "/" + href] = "404 – File not found"
 				end
 			else
 				begin
