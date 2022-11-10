@@ -176,6 +176,7 @@ def create_filelist
 	$allowed.push "/favicon.ico"
 	$allowed.push "/errors.csv"
 	$allowed.push "/errors.html"
+	$allowed.push "/wordcount.html"
 	$allowed.push "/latest/index.html"
 	$allowed.push "/latest/"
 	$allowed.push "/latest"
@@ -342,6 +343,7 @@ class SingleDocFile
 	@filename = nil
 	@lang = "en"
 	@errors = []
+	@words = Array.new # Raw array of words
 	@xmlerrs = [] # Store the trace from REXML
 	@blocked = false # Make sure no concurrent asciidoctor processes are running
 	@includes = [] # List of all includes in this file
@@ -492,6 +494,7 @@ class SingleDocFile
 	
 	def check_spelling
 		@misspelled = Array.new
+		@words = Array.new
 		return if $spelling < 1
 		sps = $dictionaries[@lang]
 		words = Array.new
@@ -514,10 +517,10 @@ class SingleDocFile
 				n = n.gsub(r, " ")
 			}
 			n.strip.split(/\s+/).each { |w|
-				words.push w.strip unless w.strip == ""
+				@words.push w.strip unless w.strip == ""
 			}
 		}
-		words.uniq.sort.each { |w|
+		@words.uniq.sort.each { |w|
 			checkw = w.strip
 			valid = false
 			valid = true if @ignored.include? checkw.strip
@@ -528,6 +531,42 @@ class SingleDocFile
 			puts "+#{checkw}+" if valid == false
 			@misspelled.push(checkw.strip) if valid == false
 		}
+	end
+	
+	# create statistics on each word - 'sehr einfach' and very easy should be considered togehter
+	def count_words
+		@wordscount = Hash.new
+		@maxwords = 0
+		lastword = nil
+		@words.each { |w| 
+			if @wordscount.has_key? w
+				@wordscount[w] += 1
+			else
+				@wordscount[w] = 1
+			end
+			@maxwords = @wordscount[w] if @maxwords < @wordscount[w]
+			if w == lastword
+				unless w =~ /^[0-9]+$/ || @filename =~ /glossar.*?asciidoc/
+					$stderr.puts "Found duplicate word! #{w} in #{@filename}"
+				end
+			end
+			if ([ "sehr", "ganz", "very"].include?(lastword) && [ "einfach", "easy" ].include?(w))
+				n = @wordscount[lastword + " " + w].to_i
+				@wordscount[lastword + " " + w] = n + 1 
+			end
+			lastword = w
+		}
+		# Bloody inefficient
+		html = ""
+		@maxwords.downto(1) { |n|
+			@wordscount.each { |k,v|
+				if v == n
+					$stderr.puts "Wordstats: #{k} #{v}"
+					html = html + "<tr><td></td><td>#{k}</td><td>#{v}</td></tr>\n"
+				end
+			}
+		}
+		return html
 	end
 	
 	def nicify_startpage(hdoc) # expects HTML tree as Nokogiri object
@@ -663,6 +702,7 @@ class SingleDocFile
 		end
 		@html = File.read(outfile)
 		check_spelling
+		count_words
 		check_xml
 		@blocked = false
 	end
@@ -776,7 +816,7 @@ class SingleDocFile
 		end
 		return html
 	end
-	attr_accessor :mtime, :errorline, :html_errorline
+	attr_accessor :mtime, :errorline, :html_errorline, :words, :wordscount, :maxwords, :lang, :filename
 end
 
 class MyServlet < WEBrick::HTTPServlet::AbstractServlet
@@ -838,13 +878,22 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				}
 				ctype= $mimetypes["csv"]
 			elsif ptoks.include?("errors.html")
-				html = "<!DOCTYPE html>\n<html><head><title>Rabbithole</title></head><body><body>\n" +
+				html = "<!DOCTYPE html>\n<html><head><title>Rabbithole</title></head><body>\n" +
 					"<table><tr><td>Filename</td><td>Broken links</td><td>Missing includes</td>" +
 					"<td>Spellcheck errors</td></tr>\n"
 				$cachedfiles.each { |f, o|
 					unless o.html_errorline.nil?
 						html = html + o.html_errorline
 					end
+				}
+				html = html + "</table></body></html>"
+				ctype= $mimetypes["html"]
+			elsif ptoks.include?("wordcount.html")
+				html = "<!DOCTYPE html>\n<html><head> <meta charset=\"UTF-8\"> <title>Wordstats</title></head><body>\n" +
+					"<table><tr><td>Filename</td><td>Word</td><td>Count</td></tr>\n"
+				$cachedfiles.each { |f, o|
+					html = html + "<tr><td>#{f}</td></tr>\n"
+					html = html + o.count_words
 				}
 				html = html + "</table></body></html>"
 				ctype= $mimetypes["html"]
@@ -874,13 +923,6 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 	end
 end
     
-server = WEBrick::HTTPServer.new(:Port => 8088)
-server.mount "/", MyServlet
-
-trap("INT") {
-    server.shutdown
-}
-
 create_config
 prepare_cache
 prepare_menu
@@ -903,6 +945,12 @@ if $buildall > 0
 	duration = Time.now.to_i - stime
 	$stderr.puts "requested buildall, done, building took #{duration}s"
 end
+
+server = WEBrick::HTTPServer.new(:Port => 8088)
+server.mount "/", MyServlet
+trap("INT") {
+    server.shutdown
+}
 $stderr.puts "docserve is ready now, have fun!"
 # prepare_glossary
 server.start
