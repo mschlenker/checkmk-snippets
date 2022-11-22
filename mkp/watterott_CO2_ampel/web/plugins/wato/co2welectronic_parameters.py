@@ -33,8 +33,8 @@ from cmk.gui.plugins.wato import (
 def _parameter_valuespec_co2_levels():
     return Dictionary(
         elements=[
-            ("co2", Tuple(
-                title=_("CO2 levels"),
+            ("levels", Tuple(
+                title=_("CO₂ levels"),
                 elements=[
                     Integer(
                         title=_("Warning above"),
@@ -46,58 +46,6 @@ def _parameter_valuespec_co2_levels():
                     ),
                 ],
             )),
-            ("temp_upper", Tuple(
-                title=_("Temperature upper"),
-                elements=[
-                    Float(
-                        title=_("Warning above"),
-                        default_value=23.0,
-                    ),
-                    Float(
-                        title=_("Critical above"),
-                        default_value=26.0,
-                    ),
-                ],
-            )),
-            ("temp_lower", Tuple(
-                title=_("Temperature lower"),
-                elements=[
-                    Float(
-                        title=_("Warning below"),
-                        default_value=17.0,
-                    ),
-                    Float(
-                        title=_("Critical below"),
-                        default_value=13.0,
-                    ),
-                ],
-            )),
-            ("humidity_upper", Tuple(
-                title=_("Humidity upper"),
-                elements=[
-                    Percentage(
-                        title=_("Warning above"),
-                        default_value=60.0,
-                    ),
-                    Percentage(
-                        title=_("Critical above"),
-                        default_value=65.0,
-                    ),
-                ],
-            )),
-            ("humidity_lower", Tuple(
-                title=_("Humidity lower"),
-                elements=[
-                    Percentage(
-                        title=_("Warning below"),
-                        default_value=35.0,
-                    ),
-                    Percentage(
-                        title=_("Critical below"),
-                        default_value=30.0,
-                    ),
-                ],
-            ))
         ],
     )
 
