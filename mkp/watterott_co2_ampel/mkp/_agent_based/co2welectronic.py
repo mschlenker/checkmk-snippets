@@ -108,7 +108,7 @@ def check_co2_level(item, params, section):
             elif float(value) < params["humidity_lower"][0]:
                 yield Result(state=State.CRIT, summary="Humidity is slightly too dry at " + value + "% (threshold from plugin)")
                 return
-            yield Result(state=State.OK, summary="Humidity is acceptable at " + value + "°C (threshold from plugin)")
+            yield Result(state=State.OK, summary="Humidity is acceptable at " + value + "% (threshold from plugin)")
         # For ambient lighting and pressure (if available) we just create services that are always OK
         elif key == item:
             yield Metric(name=key, value=float(value))
