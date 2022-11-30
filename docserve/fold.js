@@ -35,6 +35,9 @@ function foldAllSiblings() {
 			// console.log("Found: " + items[0]);
 			var list = h3.parentNode.getElementsByTagName("ul")[0];
 			list.style.display = "none";
+		} else {
+			// work around an alleged bug setting classes for h2
+			subheaders[i].parentNode.parentNode.getElementsByTagName("h2")[0].className += " open";
 		}
 	}
 }

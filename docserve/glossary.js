@@ -181,8 +181,10 @@ function displayPreview(html, x, y) {
 }
 
 // Open and close featured topic
-var featured = document.getElementById("featuredtopic");
-featured.addEventListener("click", openFeaturedOverlay, false);
+var featured = document.getElementById("morebutton");
+featured.addEventListener("click", function() { openFeatured(false); }, false);
+var ytpreview = document.getElementById("ytbox");
+ytpreview.addEventListener("click", function() { openFeatured(true); }, false);
 var opaque = document.getElementById("topicopaque");
 opaque.addEventListener("click", hideFeaturedTopic, false);
 var topicoverlay = document.getElementById("topicshadow");
@@ -190,7 +192,7 @@ topicoverlay.addEventListener("click", function(e) {
 	e.stopPropagation();
 });
 
-function openFeaturedOverlay() {
+function openFeatured(autoplay) {
 	console.log("Clicked on featured"); 
 	// We have to add the iframe if not already present
 	var container = document.getElementById("videocontainer");
@@ -198,6 +200,9 @@ function openFeaturedOverlay() {
 	if (iframes.length < 1) {
 		var a = container.getElementsByTagName("a")[0];
 		var link = a.getAttribute("href");
+		if (autoplay == true) {
+			link = link + "?autoplay=1";
+		}
 		var title = a.getAttribute("title");
 		var iframe = document.createElement("iframe");
 		container.removeChild(a);
