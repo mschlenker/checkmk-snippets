@@ -594,16 +594,16 @@ class SingleDocFile
 		content = landing.css("div[id='content']")
 		main.add_child content
 		# Get autolists
-		[ "recently_added", "recently_updated", "most_visited" ].each { |f|
+		[ "most_visited", "recently_added", "recently_updated" ].each { |f|
 			h, ul, hdoc = get_autolist f, hdoc
 			lists = hdoc.css("div[id='autolists']")[0]
 			lists.add_child h
 			lists.add_child ul
 		}
-		h, ul, hdoc = get_most_searched hdoc
-		lists = hdoc.css("div[id='autolists']")[0]
-		lists.add_child h
-		lists.add_child ul
+		# h, ul, hdoc = get_most_searched hdoc
+		# lists = hdoc.css("div[id='autolists']")[0]
+		# lists.add_child h
+		# lists.add_child ul
 		return hdoc
 	end
 	
