@@ -46,10 +46,10 @@ allcerts[1].each { |c|
 		warnings.push c
 		loglines.push "WARN: added certificate missing in old file."
 		loglines.push "    #{c.issuer}"
-		loglines.push "    #{serial}"
-		loglines.push "    #{c.not_after}"
+		loglines.push "    serial:  #{serial}"
 		loglines.push "    valid from: #{c.not_before}"
 		loglines.push "    valid til:  #{c.not_after}"
+		# loglines.push "    fingerprint:  #{c.fingerprint}"
 	end
 }
 
@@ -60,16 +60,19 @@ allcerts[0].each { |c|
 		infos.push c
 		loglines.push "NOTE: outdated certificate found!"
 		loglines.push "    #{c.issuer}"
-		loglines.push "    #{serial}"
+		loglines.push "    serial: #{serial}"
 		loglines.push "    valid til:  #{c.not_after}"
+		# loglines.push "    fingerprint:  #{c.fingerprint}"
 	else
 		# Try to find certificate in new certificate store
 		unless serials[1].include? serial
 			errors.push c
 			loglines.push "ERROR: missing certificate, probably revoked!"
 			loglines.push "    #{c.issuer}"
-			loglines.push "    #{serial}"
+			loglines.push "    serial: #{serial}"
+			loglines.push "    valid from: #{c.not_before}"
 			loglines.push "    valid til:  #{c.not_after}"
+			# loglines.push "    fingerprint:  #{c.fingerprint}"
 		end
 	end
 }
