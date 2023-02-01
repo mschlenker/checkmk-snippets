@@ -33,6 +33,8 @@ $checklinks = 1
 $spelling = 1
 # Pre-build all files (for statistics and faster caching)
 $buildall = 0
+# Run in batch mode: Build only the documents requested, print out errors and exit accordingly
+$batchmode = 0
 $lunr = Hash.new # Try to retrieve the lunr index from docs.dev or docs
 
 # Cache files here
@@ -47,6 +49,9 @@ $cachedglossary = Hash.new
 $dictionaries = Hash.new
 # Create a list of files to build at boot
 $prebuild = Array.new
+# For statistics
+$files_built = 0
+$total_errors = Array.new
 
 # FIXME later: Currently we are limited to one branch
 $branches = "localdev"
@@ -99,6 +104,8 @@ def create_config
 	opts.on('--check-links', :REQUIRED) { |i| $checklinks = i.to_i}
 	opts.on('--spelling', :REQUIRED) { |i| $spelling = i.to_i}
 	opts.on('--build-all', :REQUIRED) { |i| $buildall = i.to_i}
+	opts.on('--batch', :REQUIRED) { |i| $batchmode = i.to_i}
+	opts.on('--pre-build', :REQUIRED) { |i| $prebuild = i.split(",")}
 	opts.parse!
 	# Try to find a config file
 	# 1. command line 
@@ -118,8 +125,9 @@ def create_config
 		$injectcss = jcfg["inject-css"] unless jcfg["inject-css"].nil?
 		$injectjs = jcfg["inject-js"] unless jcfg["inject-js"].nil?
 		$checklinks = jcfg["check-links"] unless jcfg["check-links"].nil?
-		$checklinks = jcfg["spelling"] unless jcfg["spelling"].nil?
-		$checklinks = jcfg["build-all"] unless jcfg["build-all"].nil?
+		$spelling = jcfg["spelling"] unless jcfg["spelling"].nil?
+		$buildall = jcfg["build-all"] unless jcfg["build-all"].nil?
+		$buildall = jcfg["pre-build"] unless jcfg["pre-build"].nil?
 		$stderr.puts jcfg
 	end
 	[ $templates, $basepath, $cachedir ].each { |o|
@@ -355,6 +363,7 @@ class SingleDocFile
 	def initialize(filename)
 		@filename = filename
 		@misspelled = []
+		@broken_links = Hash.new
 		reread
 	end
 	
@@ -427,6 +436,9 @@ class SingleDocFile
 					broken_links[href] = $cachedlinks[href]
 				rescue URI::InvalidURIError
 					$cachedlinks[href] = "Invalid URI error"
+					broken_links[href] = $cachedlinks[href]
+				rescue Net::OpenTimeout
+					$cachedlinks[href] = "Request timeout"
 					broken_links[href] = $cachedlinks[href]
 				end
 			end
@@ -744,6 +756,7 @@ class SingleDocFile
 				head.add_child("<style>\n" + File.read(c) + "\n</style>\n") if File.file? c
 			}
 			broken_links = check_links hdoc
+			@broken_links = broken_links
 			total_errors = @errors.size + broken_links.size + @misspelled.size + @missing_includes.size
 			$stderr.puts "Total errors encountered: #{total_errors}"
 			if total_errors > 0
@@ -816,7 +829,7 @@ class SingleDocFile
 		end
 		return html
 	end
-	attr_accessor :mtime, :errorline, :html_errorline, :words, :wordscount, :maxwords, :lang, :filename
+	attr_accessor :mtime, :errorline, :html_errorline, :words, :wordscount, :maxwords, :lang, :filename, :errors, :misspelled, :broken_links
 end
 
 class MyServlet < WEBrick::HTTPServlet::AbstractServlet
@@ -927,24 +940,58 @@ create_config
 prepare_cache
 prepare_menu
 prepare_hunspell
-get_lunr
 
 # Pre-build files requested
-if $buildall > 0 
+if $buildall > 0 || $prebuild.size > 0
+	html2build = []
+	html2build = $prebuild.map { |f| '/latest/' + f.sub(/ˆ\//, '').sub(/asciidoc$/, 'html') }
+	# puts html2build
+	# puts $buildall.to_s
 	create_filelist
 	stime = Time.new.to_i
-	$stderr.puts "requested buildall"
-	$stderr.puts "requested buildall, #{$html.size} documents to build"
+	$stderr.puts "requested buildall, #{$html.size} documents to build" if $buildall > 0
 	$html.each { |f|
-		$stderr.puts "requested buildall, building #{f}"
-		filename = f.sub(/html$/, 'asciidoc').sub(/^\/latest/, '')
-		s = SingleDocFile.new filename
-		$cachedfiles[filename] = s
-		html = $cachedfiles[filename].to_html
+		if html2build.include?(f) || $buildall > 0
+			$stderr.puts "---> INFO: pre-building requested, building #{f}"
+			filename = f.sub(/html$/, 'asciidoc').sub(/^\/latest/, '')
+			s = SingleDocFile.new filename
+			$cachedfiles[filename] = s
+			html = $cachedfiles[filename].to_html
+			$total_errors += $cachedfiles[filename].broken_links.keys
+			$total_errors += $cachedfiles[filename].misspelled
+			$files_built += 1
+		end
 	}
 	duration = Time.now.to_i - stime
 	$stderr.puts "requested buildall, done, building took #{duration}s"
 end
+
+# When batch mode is set, exit here
+if $batchmode > 0
+	# Errors are encountered, exit non zero:
+	if $total_errors.size > 0
+		puts "+++> ERROR: prebuilding #{$prebuild} requested, but errors found!"
+		$cachedfiles.each { |f|
+			if f[1].broken_links.keys.size > 0
+				puts "+++> #{f[1].filename}: #{f[1].broken_links.size} broken links found."
+			end
+			if f[1].misspelled.size > 0
+				puts "+++> #{f[1].filename}: #{f[1].misspelled.size} misspelled words found."
+			end
+		}
+		exit 1
+	end
+	# If building files is requested, but nothing is built...
+	if $prebuild.size > 0 && $files_built < 1
+		puts "+++> ERROR: prebuilding #{$prebuild} requested, but nothing was built!"
+		exit 1
+	end
+	puts "---> INFO: prebuilding #{$prebuild} requested, done without issues!"
+	exit 0
+end
+
+# Retrieve the lunr index
+get_lunr
 
 server = WEBrick::HTTPServer.new(:Port => 8088)
 server.mount "/", MyServlet
