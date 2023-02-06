@@ -35,6 +35,8 @@ $spelling = 1
 $buildall = 0
 # Run in batch mode: Build only the documents requested, print out errors and exit accordingly
 $batchmode = 0
+# Auto detect files to build
+$since = nil
 $lunr = Hash.new # Try to retrieve the lunr index from docs.dev or docs
 
 # Cache files here
@@ -106,6 +108,7 @@ def create_config
 	opts.on('--build-all', :REQUIRED) { |i| $buildall = i.to_i}
 	opts.on('--batch', :REQUIRED) { |i| $batchmode = i.to_i}
 	opts.on('--pre-build', :REQUIRED) { |i| $prebuild = i.split(",")}
+	opts.on('--since', :REQUIRED) { |i| $since = i.to_s}
 	opts.parse!
 	# Try to find a config file
 	# 1. command line 
@@ -127,7 +130,8 @@ def create_config
 		$checklinks = jcfg["check-links"] unless jcfg["check-links"].nil?
 		$spelling = jcfg["spelling"] unless jcfg["spelling"].nil?
 		$buildall = jcfg["build-all"] unless jcfg["build-all"].nil?
-		$buildall = jcfg["pre-build"] unless jcfg["pre-build"].nil?
+		$prebuild = jcfg["pre-build"] unless jcfg["pre-build"].nil?
+		$since = jcfg["since"] unless jcfg["since"].nil?
 		$stderr.puts jcfg
 	end
 	[ $templates, $basepath, $cachedir ].each { |o|
@@ -191,7 +195,6 @@ def create_filelist
 	prepare_glossary
 	$allowed.each { |f| $stderr.puts f }
 end
-
 
 def prepare_cache
 	[ "de", "en" ].each { |l|
@@ -319,6 +322,30 @@ end
 
 def get_glossary(lang, id)
 	return $cachedglossary[lang][id].to_s
+end
+
+# Use the git command to identify files modified in a certain time range.
+# The string is passed unmodified, so test compatibility with git log --since='' first.
+def get_modified_since(tdiff)
+	files = Array.new
+	commits = Array.new
+	pwd = Dir.pwd
+	Dir.chdir $basepath
+	unless system "git status"
+		Dir.chdir pwd
+		return nil
+	end
+	gitout = IO.popen("git log --since='#{tdiff}'").readlines
+	gitout.each { |line|
+		if line =~ /^commit\s([0-9a-f]{40})/
+			commits.push $1
+		end
+	}
+	commits.each { |commit|
+		files = files + IO.popen("git diff-tree --no-commit-id --name-only -r '#{commit}'").readlines
+	}
+	Dir.chdir pwd
+	return files.uniq.map { |f| f.strip }
 end
 
 class SingleIncludeFile
@@ -940,6 +967,11 @@ create_config
 prepare_cache
 prepare_menu
 prepare_hunspell
+
+# Override files to pre-build if git --since is requested
+unless $since.nil?
+	$prebuild = get_modified_since($since)
+end
 
 # Pre-build files requested
 if $buildall > 0 || $prebuild.size > 0
