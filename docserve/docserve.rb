@@ -45,8 +45,6 @@ $cachedfiles = Hash.new
 $cachedincludes = Hash.new
 # Cache links, only check once per session, empty string means everything is OK
 $cachedlinks = Hash.new
-# Cache the glossary
-$cachedglossary = Hash.new
 # Prepare dictionaries
 $dictionaries = Hash.new
 # Create a list of files to build at boot
@@ -192,7 +190,6 @@ def create_filelist
 	$allowed.push "/latest/index.html"
 	$allowed.push "/latest/"
 	$allowed.push "/latest"
-	prepare_glossary
 	$allowed.each { |f| $stderr.puts f }
 end
 
@@ -211,26 +208,6 @@ def prepare_menu
 		path = "/#{lang}/menu.asciidoc"
 		s = SingleDocFile.new path
 		$cachedfiles[path] = s
-	}
-end
-
-# Prepare the glossary
-def prepare_glossary
-	[ "de", "en" ].each { |lang|
-		$cachedglossary[lang] = Hash.new
-		path = "/#{lang}/glossar.asciidoc"
-		s = SingleDocFile.new path
-		$cachedfiles[path] = s
-		# $stderr.puts s.to_html
-		# doc.css("a").each { |a|
-		# mcont = hdoc.css("div[class='main-nav__content']")[0]
-		doc = Nokogiri::HTML(s.to_html)
-		doc.css("div[class='sect3']").each { |e|
-			id = e.css("span[class='hidden-anchor sr-only']")[0]["id"]
-			$cachedglossary[lang][id] = e.inner_html
-			$allowed.push("/glossary/" + lang + "/" + id) 
-		}
-		
 	}
 end
 
@@ -318,10 +295,6 @@ def get_lunr
 			end
 		}
 	}
-end
-
-def get_glossary(lang, id)
-	return $cachedglossary[lang][id].to_s
 end
 
 # Use the git command to identify files modified in a certain time range.
@@ -892,10 +865,6 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				html = File.read $templates + path
 				suffix = ptoks[-1].split(".")[1] 
 				ctype= $mimetypes[suffix] if $mimetypes.has_key? suffix
-			elsif ptoks.include?("glossary")
-				# /glossary/lang/id
-				html = get_glossary(ptoks[-2], ptoks[-1])
-				ctype= "text/plain"
 			elsif ptoks.include?("images") && ptoks.include?("icons")
 				# Search icons only in the images/icons directory
 				html = File.read $basepath + "/images/icons/" + ptoks[-1]
@@ -1031,5 +1000,4 @@ trap("INT") {
     server.shutdown
 }
 $stderr.puts "docserve is ready now, have fun!"
-# prepare_glossary
 server.start
