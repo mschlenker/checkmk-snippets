@@ -359,11 +359,13 @@ class SingleDocFile
 	@misspelled = [] # Array of misspelled words
 	@errorline = nil # A CSV line containing errors
 	@html_errorline = nil
-	# Initialize, first read
-	def initialize(filename)
+	# Initialize, first read, depth is level of recursion for checking anchors
+	def initialize(filename, depth=0)
 		@filename = filename
 		@misspelled = []
 		@broken_links = Hash.new
+		@anchors = []
+		@depth = depth
 		reread
 	end
 	
@@ -379,21 +381,80 @@ class SingleDocFile
 		end
 	end
 	
+	# Retrieve all (hidden anchors)
+	def get_anchors
+		# $stderr.puts "Searching hidden anchor span"
+		tdoc = Nokogiri::HTML.parse(@html)
+		tdoc.search(".//div[@class='main-nav__content']").remove
+		tdoc.xpath("//span[@class='hidden-anchor sr-only']").each  { |n|
+			# $stderr.puts "Found hidden anchor span: #{n['id'].to_s}"
+			@anchors.push n['id'].to_s
+		}
+		@anchors.uniq!
+	end
+	
+	# Serach for an XML element that uses a ceratin ID. This usually is used as anchor.
+	def search_id(name)
+		found = false
+		tdoc = Nokogiri::HTML.parse(@html)
+		tdoc.search(".//div[@class='main-nav__content']").remove
+		tdoc.xpath("//*[@id='#{name}']").each  { |n|
+			$stderr.puts "Found id with unique name #{name}"
+			found = true
+		}
+		return found if found == true
+		tdoc.xpath("//*[@id='heading_#{name}']").each  { |n|
+			$stderr.puts "Found id with unique name heading_#{name}"
+			found = true
+		}
+		return found
+	end
+	
+	# Check anchors in linked documents
+	def check_local_anchors(path, anchor)
+		return true if @depth < 1
+		if $cachedfiles.has_key? "/latest/#{@lang}/#{path}"
+			$stderr.puts "Trying to serve from memory cache..."
+		else
+			filename = "/#{@lang}/#{path}".sub(/\.html$/, ".asciidoc")
+			$stderr.puts "Add file to cache #{filename}"
+			s = SingleDocFile.new(filename, @depth - 1)
+			$cachedfiles[path] = s
+		end
+		return false if $cachedfiles[path].nil?
+		html = $cachedfiles[path].to_html
+		$stderr.puts "Now find the link in the freshly built file. #{path}"
+		return true if $cachedfiles[path].anchors.include? anchor
+		return $cachedfiles[path].search_id(anchor)
+		return false
+	end
+	
 	# Check all links and internal references
 	def check_links(doc)
+		tdoc = doc.clone
+		tdoc.search(".//div[@class='main-nav__content']").remove
 		broken_links = Hash.new
 		return broken_links if $checklinks < 1
-		doc.css("a").each { |a|
+		tdoc.css("a").each { |a|
 			$stderr.puts a unless a["href"].nil?
-			begin
-				href = a["href"].split("#")[0]
-			rescue
+			anchor = ""
+			unless a["href"].nil?
+				toks = a["href"].split("#")
+				href = toks[0]
+				anchor = toks[1] if toks.size > 1
+				# $stderr.puts "Found anchor # #{anchor}" if href.size < 1
+			else
 				href = "."
 			end
-			if $cachedlinks.has_key? href
+			if href =~ /^\./ || href =~ /^\// || href == "" || href.nil? || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /checkmk\.com\// || href =~ /^mailto/
+				if href == "" && anchor.size > 0 
+					# $stderr.puts "Found anchor #{href} # #{anchor}"
+					unless @anchors.include?(anchor) || search_id(anchor)
+						broken_links["#" + anchor] = "this file, target anchor missing"
+					end
+				end
+			elsif $cachedlinks.has_key? href
 				broken_links[href] = $cachedlinks[href] unless $cachedlinks[href] == ""
-			elsif href =~ /^\./ || href =~ /^\// || href == "" || href.nil? || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /checkmk\.com\// || href =~ /^mailto/
-				$cachedlinks[href] = ""
 			elsif href =~ /^[0-9a-z._-]+$/ 
 				# Check local links against file list:
 				fname = "/latest/" + @lang + "/" + href
@@ -401,6 +462,12 @@ class SingleDocFile
 					$stderr.puts "Ignore #{fname} - this is allowed to be broken."
 				elsif $allowed.include? fname
 					$stderr.puts "Found link #{fname} in list of allowed files!"
+					if anchor.size > 0
+						$stderr.puts "Might need to build #{href} # #{anchor}"
+						unless check_local_anchors(href, anchor)
+							broken_links["/latest/" + @lang + "/" + href + "#" + anchor] = "Target anchor missing"
+						end
+					end
 				else
 					$stderr.puts "Missing #{fname} in list of allowed files!"
 					# $cachedlinks[fname] = "404 – File not found"
@@ -716,6 +783,7 @@ class SingleDocFile
 		check_spelling
 		count_words
 		check_xml
+		get_anchors
 		@blocked = false
 	end
 	
@@ -829,7 +897,7 @@ class SingleDocFile
 		end
 		return html
 	end
-	attr_accessor :mtime, :errorline, :html_errorline, :words, :wordscount, :maxwords, :lang, :filename, :errors, :misspelled, :broken_links
+	attr_accessor :mtime, :errorline, :html_errorline, :words, :wordscount, :maxwords, :lang, :filename, :errors, :misspelled, :broken_links, :anchors
 end
 
 class MyServlet < WEBrick::HTTPServlet::AbstractServlet
@@ -851,7 +919,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 			else
 				filename = "/" + ptoks[-2] + "/" + ptoks[-1].sub(/\.html$/, ".asciidoc")
 				$stderr.puts "Add file to cache #{filename}"
-				s = SingleDocFile.new filename
+				s = SingleDocFile.new(filename, 1)
 				$cachedfiles[path] = s
 			end
 			html = $cachedfiles[path].to_html
