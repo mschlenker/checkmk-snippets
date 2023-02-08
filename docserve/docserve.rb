@@ -1103,6 +1103,7 @@ if $batchmode > 0
 	errorlines.push "---> INFO: prebuilding #{$prebuild} requested, done without issues!"
 	errorlines.each { |l| puts l }
 	state = 0
+	post2slack(state, errorlines)
 	exit state
 end
 
