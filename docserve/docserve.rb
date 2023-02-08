@@ -12,6 +12,7 @@ require 'rexml/document'
 require 'net/http'
 require 'net/https'
 require 'uri'
+require 'json'
 begin
 	require 'hunspell'
 rescue LoadError
@@ -37,8 +38,11 @@ $buildall = 0
 $batchmode = 0
 # Auto detect files to build
 $since = nil
-$lunr = Hash.new # Try to retrieve the lunr index from docs.dev or docs
+# For posting to slack
+$slackauth = nil
+$channel = nil
 
+$lunr = Hash.new # Try to retrieve the lunr index from docs.dev or docs
 # Cache files here
 $cachedfiles = Hash.new
 # Same for includefiles
@@ -107,6 +111,8 @@ def create_config
 	opts.on('--batch', :REQUIRED) { |i| $batchmode = i.to_i}
 	opts.on('--pre-build', :REQUIRED) { |i| $prebuild = i.split(",")}
 	opts.on('--since', :REQUIRED) { |i| $since = i.to_s}
+	opts.on('--slack-auth', :REQUIRED) { |i| $slackauth = i.to_s}
+	opts.on('--channel', :REQUIRED) { |i| $channel = i.to_s}
 	opts.parse!
 	# Try to find a config file
 	# 1. command line 
@@ -138,6 +144,33 @@ def create_config
 			exit 1
 		end
 	}
+end
+
+def post2slack(state, elines)
+	jhash = Hash.new
+	jhash["channel"] = $channel
+	jhash["blocks"] = Array.new
+	if state < 1
+		msg = "No errors found in commits since #{$since}. Continue the good work!"
+	else
+		msg = "Errors found in commits since #{$since}. See details below!"
+	end
+	jhash["blocks"].push( { "type" => "section", "text" => { "type" => "mrkdwn", "text" => msg }} )
+	eblock = "```" + elines.join("\n") + "```"
+	jhash["blocks"].push( { "type" => "section", "text" => { "type" => "mrkdwn", "text" => eblock }} ) if state > 0
+	j = jhash.to_json
+	puts j.to_s
+	unless $channel.nil? || $slackauth.nil?
+		uri = URI('https://slack.com/api/chat.postMessage')
+		Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
+			request = Net::HTTP::Post.new(uri)
+			request['Content-Type'] = 'application/json'
+			request['Authorization'] = 'Bearer ' + $slackauth
+			request.body = j
+			response = http.request request # Net::HTTPResponse object
+			$stderr.puts "response #{response.body}"
+		end
+	end
 end
 
 # Create a list of all allowed files:
@@ -400,11 +433,13 @@ class SingleDocFile
 		tdoc.search(".//div[@class='main-nav__content']").remove
 		tdoc.xpath("//*[@id='#{name}']").each  { |n|
 			$stderr.puts "Found id with unique name #{name}"
+			@anchors.push name
 			found = true
 		}
 		return found if found == true
 		tdoc.xpath("//*[@id='heading_#{name}']").each  { |n|
 			$stderr.puts "Found id with unique name heading_#{name}"
+			@anchors.push name
 			found = true
 		}
 		return found
@@ -1040,26 +1075,35 @@ end
 
 # When batch mode is set, exit here
 if $batchmode > 0
+	errorlines = []
+	state = 1
 	# Errors are encountered, exit non zero:
 	if $total_errors.size > 0
-		puts "+++> ERROR: prebuilding #{$prebuild} requested, but errors found!"
+		errorlines.push "+++> ERROR: prebuilding #{$prebuild} requested, but errors found!"
 		$cachedfiles.each { |f|
 			if f[1].broken_links.keys.size > 0
-				puts "+++> #{f[1].filename}: #{f[1].broken_links.size} broken links found."
+				errorlines.push "+++> #{f[1].filename}: #{f[1].broken_links.size} broken links found."
 			end
 			if f[1].misspelled.size > 0
-				puts "+++> #{f[1].filename}: #{f[1].misspelled.size} misspelled words found."
+				errorlines.push "+++> #{f[1].filename}: #{f[1].misspelled.size} misspelled words found."
 			end
 		}
-		exit 1
+		errorlines.each { |l| puts l }
+		state = 1
+		post2slack(state, errorlines)
+		exit state
 	end
 	# If building files is requested, but nothing is built...
 	if $prebuild.size > 0 && $files_built < 1
-		puts "+++> ERROR: prebuilding #{$prebuild} requested, but nothing was built!"
-		exit 1
+		errorlines.push "+++> ERROR: prebuilding #{$prebuild} requested, but nothing was built!"
+		errorlines.each { |l| puts l }
+		state = 1
+		exit state
 	end
-	puts "---> INFO: prebuilding #{$prebuild} requested, done without issues!"
-	exit 0
+	errorlines.push "---> INFO: prebuilding #{$prebuild} requested, done without issues!"
+	errorlines.each { |l| puts l }
+	state = 0
+	exit state
 end
 
 # Retrieve the lunr index
