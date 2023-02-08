@@ -498,6 +498,9 @@ class SingleDocFile
 				rescue Errno::ECONNRESET
 					$cachedlinks[href] = "Connection reset by peer"
 					broken_links[href] = $cachedlinks[href]
+				rescue Errno::ECONNREFUSED
+					$cachedlinks[href] = "Connection refused"
+					broken_links[href] = $cachedlinks[href]
 				rescue OpenSSL::SSL::SSLError
 					$cachedlinks[href] = "Unspecified SSL error"
 					broken_links[href] = $cachedlinks[href]
