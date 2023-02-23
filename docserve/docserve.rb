@@ -95,6 +95,7 @@ $ignorebroken = [
 
 $allowed = [] # Store a complete list of all request paths
 $html = [] # Store a list of all HTML files
+$starttime = Time.now
 
 def create_config
 	opts = OptionParser.new
@@ -791,13 +792,13 @@ class SingleDocFile
 		@mtime = check_includes
 		cached_mtime = 0
 		cached_exists = false
-		if File.exists?(outfile) && @html.nil?
-			cached_mtime = File.mtime(outfile).to_i
-			$stderr.puts "Modification time of file on disk: #{cached_mtime}"
-			$stderr.puts "Modification time of asciidoc:    #{@mtime.to_i}"
-			cached_exists = true if cached_mtime > @mtime.to_i && cached_mtime > $menuage[@lang].to_i
-			$stderr.puts "Using file on disk..." if cached_mtime > @mtime.to_i
-		end
+		#if File.exists?(outfile) && @html.nil?
+		#	cached_mtime = File.mtime(outfile).to_i
+		#	$stderr.puts "Modification time of file on disk: #{cached_mtime}"
+		#	$stderr.puts "Modification time of asciidoc:    #{@mtime.to_i}"
+		#	cached_exists = true if cached_mtime > @mtime.to_i && cached_mtime > $menuage[@lang].to_i
+		#	$stderr.puts "Using file on disk..." if cached_mtime > @mtime.to_i
+		#end
 		cached_exists = false if @filename =~ /menu\.asciidoc$/
 		unless cached_exists
 			$stderr.puts "Rebuilding file: " + @filename  
