@@ -160,7 +160,7 @@ def post2slack(state, elines)
 	eblock = "```" + elines.join("\n") + "```"
 	jhash["blocks"].push( { "type" => "section", "text" => { "type" => "mrkdwn", "text" => eblock }} ) if state > 0
 	j = jhash.to_json
-	puts j.to_s
+	# puts j.to_s
 	unless $channel.nil? || $slackauth.nil?
 		uri = URI('https://slack.com/api/chat.postMessage')
 		Net::HTTP.start(uri.host, uri.port, :use_ssl => uri.scheme == 'https') do |http|
@@ -1083,10 +1083,10 @@ if $batchmode > 0
 		errorlines.push "+++> ERROR: prebuilding #{$prebuild} requested, but errors found!"
 		$cachedfiles.each { |f|
 			if f[1].broken_links.keys.size > 0
-				errorlines.push "+++> #{f[1].filename}: #{f[1].broken_links.size} broken links found."
+				errorlines.push "+++> #{f[1].filename}: #{f[1].broken_links.size} broken links found: #{f[1].broken_links.keys.join(', ')}"
 			end
 			if f[1].misspelled.size > 0
-				errorlines.push "+++> #{f[1].filename}: #{f[1].misspelled.size} misspelled words found."
+				errorlines.push "+++> #{f[1].filename}: #{f[1].misspelled.size} misspelled words found: #{f[1].misspelled.join(', ')}"
 			end
 		}
 		errorlines.each { |l| puts l }
