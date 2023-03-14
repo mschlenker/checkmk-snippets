@@ -786,6 +786,10 @@ class SingleDocFile
 	
 	# Read an existing file from the cache directory or rebuild if necessary
 	def reread
+		# Obey the Mutex
+		while @blocked == true
+			sleep 0.5
+		end
 		# Block concurrent builds
 		@blocked = true
 		@errors = []
