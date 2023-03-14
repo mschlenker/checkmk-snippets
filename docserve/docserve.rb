@@ -224,7 +224,7 @@ def create_filelist
 	$allowed.push "/latest/index.html"
 	$allowed.push "/latest/"
 	$allowed.push "/latest"
-	$allowed.each { |f| $stderr.puts f }
+	#$allowed.each { |f| $stderr.puts f }
 end
 
 def prepare_cache
@@ -380,19 +380,19 @@ end
 #  - revision of source file
 #  - precompiled HTML
 class SingleDocFile
-	@html = nil
-	@mtime = nil
-	@filename = nil
-	@lang = "en"
-	@errors = []
-	@words = Array.new # Raw array of words
-	@xmlerrs = [] # Store the trace from REXML
-	@blocked = false # Make sure no concurrent asciidoctor processes are running
-	@includes = [] # List of all includes in this file
-	@missing_includes = [] # Includes that could not be found
-	@misspelled = [] # Array of misspelled words
-	@errorline = nil # A CSV line containing errors
-	@html_errorline = nil
+	#@html = nil
+	#@mtime = nil
+	#@filename = nil
+	#@lang = "en"
+	#@errors = []
+	#@words = Array.new # Raw array of words
+	#@xmlerrs = [] # Store the trace from REXML
+	#@blocked = false # Make sure no concurrent asciidoctor processes are running
+	#@includes = [] # List of all includes in this file
+	#@missing_includes = [] # Includes that could not be found
+	#@misspelled = [] # Array of misspelled words
+	#@errorline = nil # A CSV line containing errors
+	#@html_errorline = nil
 	# Initialize, first read, depth is level of recursion for checking anchors
 	def initialize(filename, depth=0)
 		@filename = filename
@@ -449,30 +449,33 @@ class SingleDocFile
 	# Check anchors in linked documents
 	def check_local_anchors(path, anchor)
 		return true if @depth < 1
-		if $cachedfiles.has_key? "/latest/#{@lang}/#{path}"
-			$stderr.puts "Trying to serve from memory cache..."
+		fullpath = "/latest/#{@lang}/#{path}"
+		if $cachedfiles.has_key? fullpath
+			$stderr.puts "Trying to serve from memory cache... #{fullpath}"
 		else
 			filename = "/#{@lang}/#{path}".sub(/\.html$/, ".asciidoc")
-			$stderr.puts "Add file to cache #{filename}"
+			#$stderr.puts "Add file to cache #{filename}"
 			s = SingleDocFile.new(filename, @depth - 1)
-			$cachedfiles[path] = s
+			$cachedfiles[fullpath] = s
 		end
-		return false if $cachedfiles[path].nil?
-		html = $cachedfiles[path].to_html
-		$stderr.puts "Now find the link in the freshly built file. #{path}"
-		return true if $cachedfiles[path].anchors.include? anchor
-		return $cachedfiles[path].search_id(anchor)
+		return false if $cachedfiles[fullpath].nil?
+		#html = $cachedfiles[fullpath].to_html
+		$stderr.puts "Now find the link in the freshly built file. #{fullpath}"
+		return true if $cachedfiles[fullpath].anchors.include? anchor
+		return $cachedfiles[fullpath].search_id(anchor)
 		return false
 	end
 	
 	# Check all links and internal references
 	def check_links(doc)
+		broken_links = Hash.new
+		return broken_links if @depth < 1
 		tdoc = doc.clone
 		tdoc.search(".//div[@class='main-nav__content']").remove
-		broken_links = Hash.new
+		stats = Array.new
 		return broken_links if $checklinks < 1
 		tdoc.css("a").each { |a|
-			$stderr.puts a unless a["href"].nil?
+			# $stderr.puts a unless a["href"].nil?
 			anchor = ""
 			unless a["href"].nil?
 				toks = a["href"].split("#")
@@ -483,13 +486,15 @@ class SingleDocFile
 				href = "."
 			end
 			if href =~ /^\./ || href =~ /^\// || href == "" || href.nil? || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /checkmk\.com\// || href =~ /^mailto/
-				if href == "" && anchor.size > 0 
+				if href == "" && anchor.size > 0
+					stats.push "Checked anchor in this file: ##{anchor}"
 					# $stderr.puts "Found anchor #{href} # #{anchor}"
 					unless @anchors.include?(anchor) || search_id(anchor)
 						broken_links["#" + anchor] = "this file, target anchor missing"
 					end
 				end
 			elsif $cachedlinks.has_key? href
+				stats.push "Used cached link: #{href}"
 				broken_links[href] = $cachedlinks[href] unless $cachedlinks[href] == ""
 			elsif href =~ /^[0-9a-z._-]+$/ 
 				# Check local links against file list:
@@ -497,20 +502,21 @@ class SingleDocFile
 				if $ignorebroken.include? href
 					$stderr.puts "Ignore #{fname} - this is allowed to be broken."
 				elsif $allowed.include? fname
-					$stderr.puts "Found link #{fname} in list of allowed files!"
-					if anchor.size > 0
-						$stderr.puts "Might need to build #{href} # #{anchor}"
+					# $stderr.puts "Found link #{fname} in list of allowed files!"
+					if anchor.size > 0 && @depth > 0
+						stats.push "Might need to build #{href} # #{anchor}"
 						unless check_local_anchors(href, anchor)
 							broken_links["/latest/" + @lang + "/" + href + "#" + anchor] = "Target anchor missing"
 						end
 					end
 				else
-					$stderr.puts "Missing #{fname} in list of allowed files!"
+					stats.push "Missing #{fname} in list of allowed files!"
 					# $cachedlinks[fname] = "404 – File not found"
 					broken_links["/latest/" + @lang + "/" + href] = "404 – File not found"
 				end
 			else
 				begin
+					stats.push "Retrieving #{href}"
 					headers = nil
 					url = URI(href)
 					resp = Net::HTTP.get_response(url)
@@ -549,6 +555,7 @@ class SingleDocFile
 				end
 			end
 		}
+		stats.each { |s| $stderr.puts "Linkcheck #{filename} #{s}" }
 		$stderr.puts "Found #{broken_links.size} broken links."
 		broken_links.each { |k,v|
 			$stderr.puts "#{k}: #{v}"
@@ -580,7 +587,7 @@ class SingleDocFile
 	end
 	
 	def check_includes
-		latest_include = @mtime
+		latest_include = Time.at 0
 		@missing_includes = Array.new
 		@includes.each { |i|
 			if File.file?($basepath + i) && $cachedincludes.has_key?(i)
@@ -625,7 +632,7 @@ class SingleDocFile
 		hdoc.search(".//script").remove
 		content  = hdoc.css("body main")
 		content.search("//text()").each { |node|
-			$stderr.puts node.to_s
+			# $stderr.puts node.to_s
 			n = node.to_s
 			[ /—/, /=/, /-/, /–/, /\"/, /\'/, /\//, /„/, /“/,
 			  /bspw\./, /bzw\./, /z\.B\./, /ggf\./, /bzgl\./, /usw\./,
@@ -665,7 +672,7 @@ class SingleDocFile
 			@maxwords = @wordscount[w] if @maxwords < @wordscount[w]
 			if w == lastword
 				unless w =~ /^[0-9]+$/ || @filename =~ /glossar.*?asciidoc/
-					$stderr.puts "Found duplicate word! #{w} in #{@filename}"
+					# $stderr.puts "Found duplicate word! #{w} in #{@filename}"
 				end
 			end
 			if ([ "sehr", "ganz", "very"].include?(lastword) && [ "einfach", "easy" ].include?(w))
@@ -679,7 +686,7 @@ class SingleDocFile
 		@maxwords.downto(1) { |n|
 			@wordscount.each { |k,v|
 				if v == n
-					$stderr.puts "Wordstats: #{k} #{v}"
+					# $stderr.puts "Wordstats: #{k} #{v}"
 					html = html + "<tr><td></td><td>#{k}</td><td>#{v}</td></tr>\n"
 				end
 			}
@@ -788,8 +795,8 @@ class SingleDocFile
 		outdir = "#{$cachedir}/#{$latest}/#{@lang}"
 		# Check includes
 		read_includes
-		@mtime = File.mtime($basepath + @filename)
-		@mtime = check_includes
+		#@mtime = File.mtime($basepath + @filename)
+		#@mtime = check_includes
 		cached_mtime = 0
 		cached_exists = false
 		#if File.exists?(outfile) && @html.nil?
@@ -799,8 +806,8 @@ class SingleDocFile
 		#	cached_exists = true if cached_mtime > @mtime.to_i && cached_mtime > $menuage[@lang].to_i
 		#	$stderr.puts "Using file on disk..." if cached_mtime > @mtime.to_i
 		#end
-		cached_exists = false if @filename =~ /menu\.asciidoc$/
-		unless cached_exists
+		#cached_exists = false if @filename =~ /menu\.asciidoc$/
+		#unless cached_exists
 			$stderr.puts "Rebuilding file: " + @filename  
 			onthispage = $onthispage[@lang]
 			comm = ""
@@ -817,7 +824,8 @@ class SingleDocFile
 					@errors.push line unless line =~ /checkmk\.css/
 				end
 			}
-		end
+		#end
+		@mtime = Time.now
 		@html = File.read(outfile)
 		check_spelling
 		count_words
@@ -829,13 +837,16 @@ class SingleDocFile
 	# Decide whether to reread or just dump the cached file
 	def to_html
 		$stderr.puts "Checking file: " + $basepath + @filename
-		$stderr.puts "Modification time of asciidoc:             " + File.mtime($basepath + @filename).to_s
+		$stderr.puts "Modification time of asciidoc:             " + check_age.to_s
 		$stderr.puts "Modification time of file in memory cache: " + @mtime.to_s
 		# $stderr.puts "Modification time of latest include file:  " + check_includes.to_s
 		refresh = false
-		refresh = true if File.mtime($basepath + @filename) > @mtime
-		refresh = true if check_includes  > @mtime
+		refresh = true if check_age > @mtime
+		# refresh = true if check_includes  > @mtime
 		# Rebuild asciidoc if necessary
+		while @blocked == true
+			sleep 0.5
+		end
 		if refresh == true && @blocked == false
 			reread
 		end
@@ -954,7 +965,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 		create_filelist unless $allowed.include? path.strip
 		if $html.include? path.strip
 			if $cachedfiles.has_key? path.strip
-				$stderr.puts "Trying to serve from memory cache..."
+				$stderr.puts "Trying to serve from memory cache... #{path.strip}"
 			else
 				filename = "/" + ptoks[-2] + "/" + ptoks[-1].sub(/\.html$/, ".asciidoc")
 				$stderr.puts "Add file to cache #{filename}"
@@ -1023,7 +1034,8 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				if $cachedfiles.has_key? html_path
 					html = "{ \"last-change\" : " + $cachedfiles[html_path].check_age.to_i.to_s + " }"
 				else
-					html = "{ \"last-change\" : 0 }"
+					now = Time.now.to_i.to_s
+					html = "{ \"last-change\" : #{now} }"
 				end
 				ctype= $mimetypes["json"]
 			end
@@ -1062,7 +1074,7 @@ if $buildall > 0 || $prebuild.size > 0
 		if html2build.include?(f) || $buildall > 0
 			$stderr.puts "---> INFO: pre-building requested, building #{f}"
 			filename = f.sub(/html$/, 'asciidoc').sub(/^\/latest/, '')
-			s = SingleDocFile.new filename
+			s = SingleDocFile.new(filename, 1)
 			$cachedfiles[filename] = s
 			html = $cachedfiles[filename].to_html
 			$total_errors += $cachedfiles[filename].broken_links.keys
