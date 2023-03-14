@@ -913,7 +913,7 @@ class SingleDocFile
 				end
 				if @misspelled.size > 0
 					enode += "<h3>Misspelled or unknown words</h3><p>"
-					enode += @misspelled.join(", ")
+					enode += @misspelled.join(" ")
 					enode += "</p>"
 					@errorline = @errorline + @misspelled.size.to_s  + ";\n"
 					@html_errorline = @html_errorline + "<td>" + @misspelled.size.to_s + "</td></tr>\n"
