@@ -6,11 +6,12 @@ import serial
 import sys
 import getopt
 
-help = """This program writes a Checkmk spool file for a Watterott CO2 traffic light
-that is connected to the USB port. The format is the same as for the REST endpoint on
-the WiFi enabled devices. You can change those parameters:
+help = """
+This program continously writes a Checkmk spool file for a Watterott CO2 traffic
+light that is connected to the USB port. The format is the same as for the REST
+endpoint on the WiFi enabled devices. You can change those parameters:
 
--p optionaly specify a host to create piggyback output for
+-p optionally specify a host to create piggyback output for
 -o change path of outpt file (default /var/lib/check_mk_agent/spool/300_co2_ampel.txt)
 -s serial port to use (default /dev/ttyACM0)
 -i interval between writes (default 20s)
