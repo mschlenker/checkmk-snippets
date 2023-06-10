@@ -4,7 +4,7 @@
 # © 2022 Mattias Schlenker for tribe29 GmbH
 # © 2023 Mattias Schlenker for Checkmk GmbH
 #
-# Background: The Watterott CO2 Ampel ("CO2 traffic light") is a networkabale
+# Background: The Watterott CO2 Ampel ("CO2 traffic light") is a networkable
 # sensor board, primarily made for monitoring CO2. It is open hardware and uses
 # an open source firmware.
 #
