@@ -45,6 +45,10 @@
 # of air is possible, lower thresholds from 1000/1200 to 900/1000.
 
 from .agent_based_api.v1 import *
+from typing import Any, MutableMapping, Optional, Tuple
+
+def store_last_value(value_store: MutableMapping[str, Any], value, key: str) -> None:
+    value_store[key] = value
 
 def discover_co2_level(section):
     for key, _value in section:
@@ -55,12 +59,30 @@ def check_co2_level(item, params, section):
         # The Sensirion CO2 sensor 
         if key == "co2" and key == item:
             yield Metric(name="co2", value=int(value), boundaries=(0, 10000), levels=params["co2"])
+            value_store = get_value_store()
+            # Last state of service to compare
+            last_co2 = 0
+            if (last_co2 := value_store.get("co2")) is None:
+                last_co2 = 0
             if int(value) > params["co2"][1]:
+                store_last_value(value_store, 2, "co2")
                 yield Result(state=State.CRIT, summary=f"CO2 level is too high at {value}ppm (threshold from plugin)") 
                 return
+            # Factor in hysteresis:
+            elif int(value) > int(params["co2"][1] * (1.0 - params["hysteresis"][0] / 100.0 )) and last_co2 > 1:
+                store_last_value(value_store, 2, "co2")
+                yield Result(state=State.CRIT, summary=f"CO2 level is too high at {value}ppm (threshold from plugin, hysteresis considered)")
+                return
             elif int(value) > params["co2"][0]:
+                store_last_value(value_store, 1, "co2")
                 yield Result(state=State.WARN, summary=f"CO2 level is slightly too high at {value}ppm (threshold from plugin)")
                 return
+            # Factor in hysteresis:
+            elif int(value) > int(params["co2"][0] * (1.0 - params["hysteresis"][0] / 100.0 )) and last_co2 > 0:
+                store_last_value(value_store, 1, "co2")
+                yield Result(state=State.WARN, summary=f"CO2 level is slightly too high at {value}ppm (threshold from plugin, hysteresis considered)")
+                return
+            store_last_value(value_store, 0, "co2")
             yield Result(state=State.OK, summary=f"CO2 level is acceptable at {value}ppm (threshold from plugin)")
         # Temperature senosr on the Sensirion
         elif key == "temp" and key == item:
@@ -128,7 +150,8 @@ register.check_plugin(
         "temp_upper" : (23.0, 26.0),
         "temp_lower" : (17.0, 13.0),
         "humidity_upper" : (60.0, 65.0),
-        "humidity_lower" : (35.0, 30.0)
+        "humidity_lower" : (35.0, 30.0),
+        "hysteresis" : (5.0),
      }
 )
 

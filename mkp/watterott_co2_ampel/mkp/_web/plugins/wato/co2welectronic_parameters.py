@@ -98,7 +98,21 @@ def _parameter_valuespec_co2_levels():
                         default_value=30.0,
                     ),
                 ],
-            ))
+            )),
+            ("hysteresis", Tuple(
+                title=_("Hysteresis"),
+                help=_("Specifying a hysteresis helps venting a bit longer and thus effectively prevents flapping. In general it is recommended to vent until CO2 reaches 600ppm. If this is not always possible, a hysteresis of 20% together with a WARN threshold of 1000ppm means that OK -> WARN takes place at 1000ppm, but WARN -> OK at 800ppm. Properly set, you may vent only by service state without watching out for blue light."),
+                elements=[
+                    Percentage(
+                        title=_("CO2 (percentage)"),
+                        default_value=5.0,
+                    ),
+                    # Float(
+                    #    title=_("Temperature (absolute)"),
+                    #    default_value=1.0,
+                    # ),
+                ],
+            )),
         ],
     )
 
