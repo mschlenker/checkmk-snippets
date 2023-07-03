@@ -14,6 +14,7 @@ Use at your own risk.
 * asciidoctor executable
 * asciidoctor-diagram gem
 * pygments.rb gem
+* hunspell gem
 
 Due to a bug your checkmkdocs-styling repo need two empty menu files:
 

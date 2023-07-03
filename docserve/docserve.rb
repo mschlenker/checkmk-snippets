@@ -56,6 +56,8 @@ $prebuild = Array.new
 # For statistics
 $files_built = 0
 $total_errors = Array.new
+# Some files to log to
+$linklog = nil
 
 # FIXME later: Currently we are limited to one branch
 $branches = "localdev"
@@ -114,6 +116,7 @@ def create_config
 	opts.on('--since', :REQUIRED) { |i| $since = i.to_s}
 	opts.on('--slack-auth', :REQUIRED) { |i| $slackauth = i.to_s}
 	opts.on('--channel', :REQUIRED) { |i| $channel = i.to_s}
+	opts.on('--linklog', :REQUIRED) { |i| $linklog = i.to_s}
 	opts.parse!
 	# Try to find a config file
 	# 1. command line 
@@ -121,7 +124,7 @@ def create_config
 	# 3. program directory
 	if $cfgfile.nil? 
 		[ __dir__ + "/checkmk-docserve.cfg", Dir.home + "/.config/checkmk-docserve.cfg" ].each { |f|
-			$cfgfile = f if File.exists? f
+			$cfgfile = f if File.exist? f
 		}
 	end
 	unless $cfgfile.nil?
@@ -247,7 +250,7 @@ end
 
 # Check whether the german dictionary contains "Äffin" (female monkey) in the correct character set
 def monkey_search(file)
-	return false unless File.exists?(file)
+	return false unless File.exist?(file)
 	File.open(file).each { |line| 
 		begin
 			if line =~ /^Äffin/
@@ -279,7 +282,7 @@ def prepare_hunspell
 			monkey_search($cachedir + "/de_DE.dic")
 		end
 		# Hunspell dictionary has to be converted to UTF-8, better create an own dictionary
-		if File.exists?($cachedir + "/de_DE.dic")
+		if File.exist?($cachedir + "/de_DE.dic")
 			$dictionaries["de"].push Hunspell.new('/usr/share/hunspell/de_DE.aff', $cachedir + "/de_DE.dic")
 			$stderr.puts("hunspell: using #{$cachedir}/de_DE.dic with /usr/share/hunspell/de_DE.aff")
 		else
@@ -299,11 +302,11 @@ def prepare_hunspell
 		# Do nothing.
 	end
 	begin
-		if File.exists?($basepath + "/testing/hunspell/extra_de.dic")
-			$dictionaries["de"].push Hunspell.new('/usr/share/hunspell/de_DE.aff', $basepath + "/testing/hunspell/extra_de.dic") if File.exists?($basepath + "/testing/hunspell/extra_de.dic")
+		if File.exist?($basepath + "/testing/hunspell/extra_de.dic")
+			$dictionaries["de"].push Hunspell.new('/usr/share/hunspell/de_DE.aff', $basepath + "/testing/hunspell/extra_de.dic") if File.exist?($basepath + "/testing/hunspell/extra_de.dic")
 			$stderr.puts("hunspell: using #{$basepath}/testing/hunspell/extra_de.dic with /usr/share/hunspell/de_DE.aff")
 		end
-		if File.exists?($basepath + "/testing/hunspell/extra_en.dic")
+		if File.exist?($basepath + "/testing/hunspell/extra_en.dic")
 			$dictionaries["en"].push Hunspell.new('/usr/share/hunspell/en_US.aff', $basepath + "/testing/hunspell/extra_en.dic")
 			$stderr.puts("hunspell: using #{$basepath}/testing/hunspell/extra_en.dic with /usr/share/hunspell/en_US.aff")
 		end
@@ -485,7 +488,7 @@ class SingleDocFile
 			else
 				href = "."
 			end
-			if href =~ /^\./ || href =~ /^\// || href == "" || href.nil? || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /checkmk\.com\// || href =~ /^mailto/
+			if href =~ /^\./ || href =~ /^\// || href == "" || href.nil? || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /docs\.checkmk\.com\// || href =~ /^mailto/
 				if href == "" && anchor.size > 0
 					stats.push "Checked anchor in this file: ##{anchor}"
 					# $stderr.puts "Found anchor #{href} # #{anchor}"
@@ -803,7 +806,7 @@ class SingleDocFile
 		#@mtime = check_includes
 		cached_mtime = 0
 		cached_exists = false
-		#if File.exists?(outfile) && @html.nil?
+		#if File.exist?(outfile) && @html.nil?
 		#	cached_mtime = File.mtime(outfile).to_i
 		#	$stderr.puts "Modification time of file on disk: #{cached_mtime}"
 		#	$stderr.puts "Modification time of asciidoc:    #{@mtime.to_i}"
