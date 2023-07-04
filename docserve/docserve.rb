@@ -58,6 +58,8 @@ $files_built = 0
 $total_errors = Array.new
 # Some files to log to
 $linklog = nil
+# Compare the structure of both languages
+$structure = 0
 
 # FIXME later: Currently we are limited to one branch
 $branches = "localdev"
@@ -117,6 +119,7 @@ def create_config
 	opts.on('--slack-auth', :REQUIRED) { |i| $slackauth = i.to_s}
 	opts.on('--channel', :REQUIRED) { |i| $channel = i.to_s}
 	opts.on('--linklog', :REQUIRED) { |i| $linklog = i.to_s}
+	opts.on('--structure', :REQUIRED) { |i| $structure = i.to_i}
 	opts.parse!
 	# Try to find a config file
 	# 1. command line 
@@ -403,6 +406,8 @@ class SingleDocFile
 		@broken_links = Hash.new
 		@anchors = []
 		@depth = depth
+		@docstruc = []
+		@structerrors = 0
 		reread
 	end
 	
@@ -564,6 +569,54 @@ class SingleDocFile
 			$stderr.puts "#{k}: #{v}"
 		}
 		return broken_links
+	end
+	
+	def check_structure(build=true)
+		to_html if build
+		docstruc = []
+		tdoc = Nokogiri::HTML.parse(@html)
+		tdoc.search(".//div[@class='main-nav__content']").remove
+		tdoc.xpath(".//div[@class='sect1']").each  { |n|
+			docstruc.push "h2"
+			n.xpath(".//div[@class='sect2']").each  { |m|
+				docstruc.push "h3"
+			  	m.xpath(".//div[@class='sect3']").each  { |o|
+					docstruc.push "h4"
+				}
+			}
+			n.xpath(".//table").each  { |t|
+				docstruc.push "table"
+				rows = 0
+				t.xpath(".//tr").each  { |r|
+					rows += 1
+				}
+				docstruc.push "#{rows} rows"
+			}
+			n.xpath(".//div[@class='imageblock']").each  { |t|
+				docstruc.push "img"
+			}
+			n.xpath(".//div[@class='imageblock border']").each  { |t|
+				docstruc.push "img"
+			}
+			n.xpath(".//ul").each  { |t|
+				docstruc.push "ul"
+				li = 0
+				t.xpath(".//li").each  { |r|
+					li += 1
+				}
+				docstruc.push "#{li} items"
+			}
+			n.xpath(".//ol").each  { |t|
+				docstruc.push "ol"
+				li = 0
+				t.xpath(".//li").each  { |r|
+					li += 1
+				}
+				docstruc.push  "#{li} items"
+			}
+		}
+		@docstruc = docstruc
+		return docstruc
 	end
 	
 	# Read the includes ans also read ignorewords
@@ -842,7 +895,7 @@ class SingleDocFile
 	end
 	
 	# Decide whether to reread or just dump the cached file
-	def to_html
+	def to_html(otherstructure=nil)
 		$stderr.puts "Checking file: " + $basepath + @filename
 		$stderr.puts "Modification time of asciidoc:             " + check_age.to_s
 		$stderr.puts "Modification time of file in memory cache: " + @mtime.to_s
@@ -862,6 +915,12 @@ class SingleDocFile
 		@errorline = nil
 		@html_errorline = nil
 		unless @filename =~ /menu\.asciidoc$/
+			mystructure = nil
+			@structerrors = 0
+			unless otherstructure.nil?
+				mystructure = check_structure(false)
+				@structerrors = 1 unless mystructure == otherstructure
+			end
 			hdoc = Nokogiri::HTML.parse html
 			head  = hdoc.at_css "head"
 			cnode = hdoc.css("div[id='preamble']")[0]
@@ -882,7 +941,7 @@ class SingleDocFile
 			}
 			broken_links = check_links hdoc
 			@broken_links = broken_links
-			total_errors = @errors.size + broken_links.size + @misspelled.size + @missing_includes.size
+			total_errors = @errors.size + broken_links.size + @misspelled.size + @missing_includes.size + structerrors
 			$stderr.puts "Total errors encountered: #{total_errors}"
 			if total_errors > 0
 				hname = @filename.sub(/asciidoc$/, 'html')
@@ -924,6 +983,13 @@ class SingleDocFile
 					@errorline = @errorline + "0;\n"
 					@html_errorline = @html_errorline + "<td>0</td></tr>\n"
 				end
+				if structerrors > 0 && !otherstructure.nil?
+					enode += "<h3>Structure not matching</h3><p>This: "
+					enode += @docstruc.join(", ")
+					enode += "</p><p>Other: "
+					enode += otherstructure.join(", ")
+					enode += "</p>"
+				end
 				enode += "</div>\n"
 				if cnode.nil?
 					$stderr.puts "Preamble not found!"
@@ -954,7 +1020,7 @@ class SingleDocFile
 		end
 		return html
 	end
-	attr_accessor :mtime, :errorline, :html_errorline, :words, :wordscount, :maxwords, :lang, :filename, :errors, :misspelled, :broken_links, :anchors
+	attr_accessor :mtime, :errorline, :html_errorline, :words, :wordscount, :maxwords, :lang, :filename, :errors, :misspelled, :broken_links, :anchors, :docstruc, :structerrors
 end
 
 class MyServlet < WEBrick::HTTPServlet::AbstractServlet
@@ -971,6 +1037,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 		# Re-create the filelist if a file not listed is requested, an image or an asciidoc file might have been added
 		create_filelist unless $allowed.include? path.strip
 		if $html.include? path.strip
+			otherstruc = nil
 			if $cachedfiles.has_key? path.strip
 				$stderr.puts "Trying to serve from memory cache... #{path.strip}"
 			else
@@ -979,7 +1046,21 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				s = SingleDocFile.new(filename, 1)
 				$cachedfiles[path] = s
 			end
-			html = $cachedfiles[path].to_html
+			if $structure > 0
+				otherstruc = []
+				otherlangs = [ "de", "en" ] - [ ptoks[-2] ]
+				otherfile = "/" + ptoks[-3] + "/" + otherlangs[0] + "/" + ptoks[-1]
+				if $html.include?("/" + ptoks[-3] + "/" + otherlangs[0] + "/" + ptoks[-1])
+					unless $cachedfiles.has_key? otherfile
+						otherfilename = "/" + otherlangs[0] + "/" + ptoks[-1].sub(/\.html$/, ".asciidoc")
+						osdoc = SingleDocFile.new(otherfilename, 1)
+						$cachedfiles[otherfile] = osdoc
+					end
+					otherstruc = $cachedfiles[otherfile].check_structure
+				end
+				puts otherstruc.join(", ")
+ 			end
+			html = $cachedfiles[path].to_html(otherstruc)
 			response.status = status
 			response.content_type = "text/html"
 			response.body = html
@@ -1106,6 +1187,9 @@ if $batchmode > 0
 			end
 			if f[1].misspelled.size > 0
 				errorlines.push "+++> #{f[1].filename}: #{f[1].misspelled.size} misspelled words found: #{f[1].misspelled.join(', ')}"
+			end
+			if f[1].structerrors > 0
+				errorlines.push "+++> #{f[1].filename}: Document structure not matching"
 			end
 		}
 		errorlines.each { |l| puts l }
