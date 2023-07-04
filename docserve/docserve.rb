@@ -888,6 +888,11 @@ class SingleDocFile
 		@mtime = Time.now
 		@html = File.read(outfile)
 		check_spelling
+		check_structure(false)
+		strf = File.new("#{$cachedir}/#{$latest}/#{@filename}".gsub(/asciidoc$/, "txt"), "w")
+		strf.write(@docstruc.join("\n"))
+		strf.write("\n")
+		strf.close
 		count_words
 		check_xml
 		get_anchors
