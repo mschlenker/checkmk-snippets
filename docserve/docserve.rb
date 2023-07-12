@@ -19,6 +19,9 @@ rescue LoadError
 	$stderr.puts "Hunspell missing, working without spell checking"
 end
 
+# create a struct to hold the node type, some attributes and the content of the node
+Node = Struct.new(:type, :trait, :data)
+
 # require 'rexml/document'
 # require 'asciidoctor'
 
@@ -577,46 +580,53 @@ class SingleDocFile
 		tdoc = Nokogiri::HTML.parse(@html)
 		tdoc.search(".//div[@class='main-nav__content']").remove
 		tdoc.xpath(".//div[@class='sect1']").each  { |n|
-			docstruc.push "h2"
+			docstruc.push Node.new("h2", nil, n.search(".//h2")[0])
 			n.xpath(".//div[@class='sect2']").each  { |m|
-				docstruc.push "h3"
+				docstruc.push Node.new("h3", nil, m.search(".//h3")[0])
 			  	m.xpath(".//div[@class='sect3']").each  { |o|
-					docstruc.push "h4"
+					docstruc.push Node.new("h4", nil, o.search(".//h4")[0])
 				}
 			}
 			n.xpath(".//table").each  { |t|
-				docstruc.push "table"
 				rows = 0
 				t.xpath(".//tr").each  { |r|
 					rows += 1
 				}
-				docstruc.push "#{rows} rows"
+				docstruc.push Node.new("table", rows, t)
 			}
 			n.xpath(".//div[@class='imageblock']").each  { |t|
-				docstruc.push "img"
+				docstruc.push Node.new("img", nil, t)
 			}
 			n.xpath(".//div[@class='imageblock border']").each  { |t|
-				docstruc.push "img"
+				docstruc.push Node.new("img", nil, t)
 			}
 			n.xpath(".//ul").each  { |t|
-				docstruc.push "ul"
 				li = 0
 				t.xpath(".//li").each  { |r|
 					li += 1
 				}
-				docstruc.push "#{li} items"
+				docstruc.push Node.new("ul", li, t)
 			}
 			n.xpath(".//ol").each  { |t|
-				docstruc.push "ol"
 				li = 0
 				t.xpath(".//li").each  { |r|
 					li += 1
 				}
-				docstruc.push  "#{li} items"
+				docstruc.push Node.new("ol", li, t)
 			}
 		}
 		@docstruc = docstruc
 		return docstruc
+	end
+	
+	def get_first_structure_difference(a, b)
+		items = [ a.size, b.size ].max
+		0.upto(items - 1) { |n| 
+			return [ a[n].data, "empty" ] if b[n].nil?
+			return [ "empty", b[n].data ] if a[n].nil?
+			return [ a[n].data, b[n].data ] unless a[n].type == b[n].type && a[n].trait == b[n].trait
+		}
+		return nil
 	end
 	
 	# Read the includes ans also read ignorewords
@@ -922,9 +932,11 @@ class SingleDocFile
 		unless @filename =~ /menu\.asciidoc$/
 			mystructure = nil
 			@structerrors = 0
+			struct_delta = nil
 			unless otherstructure.nil?
 				mystructure = check_structure(false)
-				@structerrors = 1 unless mystructure == otherstructure
+				struct_delta = get_first_structure_difference(mystructure, otherstructure)
+				@structerrors = 1 unless struct_delta.nil?
 			end
 			hdoc = Nokogiri::HTML.parse html
 			head  = hdoc.at_css "head"
@@ -988,11 +1000,11 @@ class SingleDocFile
 					@errorline = @errorline + "0;\n"
 					@html_errorline = @html_errorline + "<td>0</td></tr>\n"
 				end
-				if structerrors > 0 && !otherstructure.nil?
-					enode += "<h3>Structure not matching</h3><p>This: "
-					enode += @docstruc.join(", ")
-					enode += "</p><p>Other: "
-					enode += otherstructure.join(", ")
+				if structerrors > 0
+					enode += "<h3>Structure not matching</h3><p><b>This:</b> "
+					enode += struct_delta[0]
+					enode += "</p><p><b>Other:</b> "
+					enode += struct_delta[1]
 					enode += "</p>"
 				end
 				enode += "</div>\n"
