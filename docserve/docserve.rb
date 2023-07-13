@@ -580,11 +580,20 @@ class SingleDocFile
 		tdoc = Nokogiri::HTML.parse(@html)
 		tdoc.search(".//div[@class='main-nav__content']").remove
 		tdoc.xpath(".//div[@class='sect1']").each  { |n|
-			docstruc.push Node.new("h2", nil, n.search(".//h2")[0])
+			h2 = n.search(".//h2")[0]
+			h2['id'] = ''
+			h2.search(".//span").each { |x| x['id'] = '' }
+			docstruc.push Node.new("h2", nil, h2)
 			n.xpath(".//div[@class='sect2']").each  { |m|
-				docstruc.push Node.new("h3", nil, m.search(".//h3")[0])
+				h3 = n.search(".//h3")[0]
+				h3['id'] = ''
+				h3.search(".//span").each { |x| x['id'] = '' }
+				docstruc.push Node.new("h3", nil, h3)
 			  	m.xpath(".//div[@class='sect3']").each  { |o|
-					docstruc.push Node.new("h4", nil, o.search(".//h4")[0])
+					h4 = n.search(".//h4")[0]
+					h4['id'] = ''
+					h4.search(".//span").each { |x| x['id'] = '' }
+					docstruc.push Node.new("h4", nil, h4)
 				}
 			}
 			n.xpath(".//table").each  { |t|
