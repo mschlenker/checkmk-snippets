@@ -1002,9 +1002,9 @@ class SingleDocFile
 				end
 				if structerrors > 0
 					enode += "<h3>Structure not matching</h3><p><b>This:</b> "
-					enode += struct_delta[0]
+					enode += struct_delta[0].to_html
 					enode += "</p><p><b>Other:</b> "
-					enode += struct_delta[1]
+					enode += struct_delta[1].to_html
 					enode += "</p>"
 				end
 				enode += "</div>\n"
