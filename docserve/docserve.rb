@@ -574,9 +574,28 @@ class SingleDocFile
 		return broken_links
 	end
 	
+	def get_imgnodes(h, known)
+		nodes = []
+		h.xpath(".//div[@class='imageblock']").each  { |t|
+			unless known.include? t
+				nodes.push Node.new("img", nil, t)
+				known.push t
+			end
+		}
+		h.xpath(".//div[@class='imageblock border']").each  { |t|
+			unless known.include? t
+				nodes.push Node.new("img", nil, t)
+				known.push t
+			end
+		}
+		return nodes, known
+	end
+	
+	
 	def check_structure(build=true)
 		to_html if build
 		docstruc = []
+		known = []
 		tdoc = Nokogiri::HTML.parse(@html)
 		tdoc.search(".//div[@class='main-nav__content']").remove
 		tdoc.xpath(".//div[@class='sect1']").each  { |n|
@@ -590,24 +609,24 @@ class SingleDocFile
 				h3.search(".//span").each { |x| x['id'] = '' }
 				docstruc.push Node.new("h3", nil, h3)
 			  	m.xpath(".//div[@class='sect3']").each  { |o|
-					h4 = n.search(".//h4")[0]
+					h4 = o.search(".//h4")[0]
 					h4['id'] = ''
 					h4.search(".//span").each { |x| x['id'] = '' }
 					docstruc.push Node.new("h4", nil, h4)
+					imgs, known = get_imgnodes(o, known)
+					docstruc = docstruc + imgs
 				}
+				imgs, known = get_imgnodes(m, known)
+				docstruc = docstruc + imgs
 			}
+			imgs, known = get_imgnodes(n, known)
+			docstruc = docstruc + imgs
 			n.xpath(".//table").each  { |t|
 				rows = 0
 				t.xpath(".//tr").each  { |r|
 					rows += 1
 				}
 				docstruc.push Node.new("table", rows, t)
-			}
-			n.xpath(".//div[@class='imageblock']").each  { |t|
-				docstruc.push Node.new("img", nil, t)
-			}
-			n.xpath(".//div[@class='imageblock border']").each  { |t|
-				docstruc.push Node.new("img", nil, t)
 			}
 			n.xpath(".//ul").each  { |t|
 				li = 0
