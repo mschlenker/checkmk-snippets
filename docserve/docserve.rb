@@ -603,11 +603,18 @@ class SingleDocFile
 			h2['id'] = ''
 			h2.search(".//span").each { |x| x['id'] = '' }
 			docstruc.push Node.new("h2", nil, h2)
+			stripped = n.clone
+			stripped.xpath(".//div[@class='sect2']").each  { |m| stripped.delete m}
+			imgs, known = get_imgnodes(stripped, known)
+			docstruc = docstruc + imgs
 			n.xpath(".//div[@class='sect2']").each  { |m|
 				h3 = m.search(".//h3")[0]
 				h3['id'] = ''
 				h3.search(".//span").each { |x| x['id'] = '' }
 				docstruc.push Node.new("h3", nil, h3)
+				stripped = m.clone
+				imgs, known = get_imgnodes(stripped, known)
+				docstruc = docstruc + imgs
 			  	m.xpath(".//div[@class='sect3']").each  { |o|
 					h4 = o.search(".//h4")[0]
 					h4['id'] = ''
@@ -616,11 +623,7 @@ class SingleDocFile
 					imgs, known = get_imgnodes(o, known)
 					docstruc = docstruc + imgs
 				}
-				imgs, known = get_imgnodes(m, known)
-				docstruc = docstruc + imgs
 			}
-			imgs, known = get_imgnodes(n, known)
-			docstruc = docstruc + imgs
 			n.xpath(".//table").each  { |t|
 				rows = 0
 				t.xpath(".//tr").each  { |r|
