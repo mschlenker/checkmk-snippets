@@ -577,15 +577,15 @@ class SingleDocFile
 	def get_imgnodes(h, known)
 		nodes = []
 		h.xpath(".//div[@class='imageblock']").each  { |t|
-			unless known.include? t
+			unless known.include? t.to_html
 				nodes.push Node.new("img", nil, t)
-				known.push t
+				known.push t.to_html
 			end
 		}
 		h.xpath(".//div[@class='imageblock border']").each  { |t|
-			unless known.include? t
+			unless known.include? t.to_html
 				nodes.push Node.new("img", nil, t)
-				known.push t
+				known.push t.to_html
 			end
 		}
 		return nodes, known
@@ -604,7 +604,7 @@ class SingleDocFile
 			h2.search(".//span").each { |x| x['id'] = '' }
 			docstruc.push Node.new("h2", nil, h2)
 			n.xpath(".//div[@class='sect2']").each  { |m|
-				h3 = n.search(".//h3")[0]
+				h3 = m.search(".//h3")[0]
 				h3['id'] = ''
 				h3.search(".//span").each { |x| x['id'] = '' }
 				docstruc.push Node.new("h3", nil, h3)
@@ -649,10 +649,14 @@ class SingleDocFile
 	
 	def get_first_structure_difference(a, b)
 		items = [ a.size, b.size ].max
-		0.upto(items - 1) { |n| 
+		0.upto(items - 1) { |n|
+			puts a[n].type + " " + a[n].trait.to_s + " " + a[n].data.to_s + " " + b[n].type + " " + b[n].trait.to_s + " " + b[n].data.to_s
 			return [ a[n].data, "empty" ] if b[n].nil?
 			return [ "empty", b[n].data ] if a[n].nil?
-			return [ a[n].data, b[n].data ] unless a[n].type == b[n].type && a[n].trait == b[n].trait
+			unless (a[n].type == b[n].type && a[n].trait.to_s == b[n].trait.to_s)
+				#puts a[n].type + " " + a[n].trait.to_s + " " + b[n].type + " " + b[n].trait.to_s
+				return [ a[n].data, b[n].data ] # unless (a[n].type == b[n].type && a[n].trait.to_s == b[n].trait.to_s)
+			end
 		}
 		return nil
 	end
@@ -928,8 +932,10 @@ class SingleDocFile
 		check_spelling
 		check_structure(false)
 		strf = File.new("#{$cachedir}/#{$latest}/#{@filename}".gsub(/asciidoc$/, "txt"), "w")
-		strf.write(@docstruc.join("\n"))
-		strf.write("\n")
+		@docstruc.each { |e|
+			strf.write(e.type + " " + e.trait.to_s)
+			strf.write("\n")
+		}
 		strf.close
 		count_words
 		check_xml
