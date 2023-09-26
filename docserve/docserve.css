@@ -9,6 +9,10 @@
 	font-family: monospace;
 }
 
+span.hll span.tok-go {
+	color: black;
+}
+
 /* min-width is only used for centering on landing page */
 @media only screen and (min-width: 1650px) and (min-height: 980px) {
 	
