@@ -485,6 +485,17 @@ class SingleDocFile
 		tdoc.search(".//div[@class='main-nav__content']").remove
 		stats = Array.new
 		return broken_links if $checklinks < 1
+		tdoc.css("img").each { |a|
+			unless a["src"].nil?
+				src = a["src"]
+				if src =~ /^\.\.\//
+					src = src.gsub( /^\.\./, '')
+					unless File.exist?($basepath + src)
+						broken_links[a["src"]] = "404 – File not found"
+					end
+				end
+			end
+		}
 		tdoc.css("a").each { |a|
 			# $stderr.puts a unless a["href"].nil?
 			anchor = ""
@@ -583,6 +594,12 @@ class SingleDocFile
 			end
 		}
 		h.xpath(".//div[@class='imageblock border']").each  { |t|
+			unless known.include? t.to_html
+				nodes.push Node.new("img", nil, t)
+				known.push t.to_html
+			end
+		}
+		h.xpath(".//span[@class='image-inline']").each  { |t|
 			unless known.include? t.to_html
 				nodes.push Node.new("img", nil, t)
 				known.push t.to_html
