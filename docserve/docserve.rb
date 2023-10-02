@@ -584,7 +584,30 @@ class SingleDocFile
 		}
 		return broken_links
 	end
-	
+    
+    def check_codeboxes(hdoc)
+        broken_verbatim = []
+        nodes = get_codeboxes(hdoc)
+        nodes.each { |n|
+            begin
+                n.to_s.encode(Encoding::ASCII)
+            rescue Encoding::UndefinedConversionError
+                broken_verbatim.push(n)
+            end
+        }
+        return broken_verbatim
+    end
+    
+    def get_codeboxes(hdoc)
+        nodes = []
+        [ ".//script", ".//code" ].each { |r|
+            hdoc.xpath(r).each  { |t|
+                nodes.push(t.to_html)
+            }
+        }
+        return nodes
+    end
+    	
 	def get_imgnodes(h, known)
 		nodes = []
 		h.xpath(".//div[@class='imageblock']").each  { |t|
@@ -1012,7 +1035,8 @@ class SingleDocFile
 			}
 			broken_links = check_links hdoc
 			@broken_links = broken_links
-			total_errors = @errors.size + broken_links.size + @misspelled.size + @missing_includes.size + structerrors
+            broken_code = check_codeboxes hdoc
+			total_errors = @errors.size + broken_links.size + @misspelled.size + @missing_includes.size + structerrors + broken_code.size
 			$stderr.puts "Total errors encountered: #{total_errors}"
 			if total_errors > 0
 				hname = @filename.sub(/asciidoc$/, 'html')
@@ -1054,6 +1078,12 @@ class SingleDocFile
 					@errorline = @errorline + "0;\n"
 					@html_errorline = @html_errorline + "<td>0</td></tr>\n"
 				end
+                if broken_code.size > 0
+                    enode += "<h3>Found codeboxes with non ASCII chars</h3><p>"
+                    broken_code.each { |n|
+                        enode += "<pre class='pygments highlight'>" + n + '</pre>'
+                    }
+                end
 				if structerrors > 0
 					enode += "<h3>Structure not matching</h3><p><b>This:</b> "
 					enode += struct_delta[0].to_html
