@@ -13,6 +13,10 @@ span.hll span.tok-go {
 	color: black;
 }
 
+/* main {
+	background-image: url(/assets/images/tile_draft.png);
+} */
+
 /* min-width is only used for centering on landing page */
 @media only screen and (min-width: 1650px) and (min-height: 980px) {
 	
