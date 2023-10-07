@@ -13,7 +13,7 @@
 TARGETDIR="$1"
 # Only specify one of ! Precedence: Ubuntu, Debian, Devuan
 UBUEDITION="jammy" # jammy: 22.04, impish: 21.10, focal: 20.04
-DEBEDITION="bullseye" # bookworm: 12, bullseye: 11.x Takes precedence over Devuan
+DEBEDITION="bookworm" # bookworm: 12, bullseye: 11.x Takes precedence over Devuan
 DEVEDITION="daedalus" # daedalus 5.0 = 12.x, Devuan is Debian without systemd
 # Make sure you have devootstrap scripts or install Devuan debootstrap
 # http://deb.devuan.org/devuan/pool/main/d/debootstrap/
