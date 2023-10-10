@@ -9,8 +9,17 @@
 	font-family: monospace;
 }
 
-span.hll span.tok-go {
+span.hll span.tok-go,
+span.hll span.tok-n,
+span.hll span.tok-p,
+span.hll span.tok-s2,
+span.hll span.tok-nb {
 	color: black;
+}
+
+div.header-top__search__results__breadcrumb {
+	font-size: 80%;
+	font-style: italic;
 }
 
 /* main {
