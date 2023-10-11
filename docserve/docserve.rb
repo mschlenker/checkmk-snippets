@@ -590,7 +590,9 @@ class SingleDocFile
         nodes = get_codeboxes(hdoc)
         nodes.each { |n|
             begin
-                n.to_s.encode(Encoding::ASCII)
+                s = n.to_s
+                @nonascii.each { |t| s.gsub!(t, " ") }
+                s.encode(Encoding::ASCII)
             rescue Encoding::UndefinedConversionError
                 broken_verbatim.push(n)
             end
@@ -708,6 +710,7 @@ class SingleDocFile
 	def read_includes
 		@includes = Array.new
 		@ignored = Array.new
+        @nonascii = Array.new
 		@mtime = File.mtime($basepath + @filename)
 		File.open($basepath + @filename).each { |line|
 			if line =~ /include::(.*?)\[/
@@ -723,6 +726,10 @@ class SingleDocFile
 			if line =~ /\/\/(\s*?)IGNORE/
 				ltoks = line.strip.split
 				@ignored = @ignored + ltoks[2..-1]
+			end
+            if line =~ /\/\/(\s*?)NONASCII/
+				ltoks = line.strip.split
+				@nonascii = @nonascii + ltoks[2..-1]
 			end
 		}
 	end
