@@ -640,56 +640,48 @@ class SingleDocFile
 		known = []
 		tdoc = Nokogiri::HTML.parse(@html)
 		tdoc.search(".//div[@class='main-nav__content']").remove
-		tdoc.xpath(".//div[@class='sect1']").each  { |n|
-			h2 = n.search(".//h2")[0]
-			h2['id'] = ''
-			h2.search(".//span").each { |x| x['id'] = '' }
-			docstruc.push Node.new("h2", nil, h2)
-			stripped = n.clone
-			stripped.xpath(".//div[@class='sect2']").each  { |m| stripped.delete m}
-			imgs, known = get_imgnodes(stripped, known)
-			docstruc = docstruc + imgs
-			n.xpath(".//div[@class='sect2']").each  { |m|
-				h3 = m.search(".//h3")[0]
-				h3['id'] = ''
-				h3.search(".//span").each { |x| x['id'] = '' }
-				docstruc.push Node.new("h3", nil, h3)
-				stripped = m.clone
-				imgs, known = get_imgnodes(stripped, known)
-				docstruc = docstruc + imgs
-			  	m.xpath(".//div[@class='sect3']").each  { |o|
-					h4 = o.search(".//h4")[0]
-					h4['id'] = ''
-					h4.search(".//span").each { |x| x['id'] = '' }
-					docstruc.push Node.new("h4", nil, h4)
-					imgs, known = get_imgnodes(o, known)
-					docstruc = docstruc + imgs
-				}
-			}
-			n.xpath(".//table").each  { |t|
-				rows = 0
-				t.xpath(".//tr").each  { |r|
+        tmpstruc = tdoc.search('*') #.map(&:name)
+        puts tmpstruc.map(&:name)
+        tmpstruc.each { |e|
+            if e.name == "h2"
+                trait = nil
+                trait = e['id'] unless e['id'] =~ /^heading__/
+                docstruc.push Node.new("h2", trait, e)
+            elsif e.name == "h3"
+                trait = nil
+                trait = e['id'] unless e['id'] =~ /^heading__/
+                docstruc.push Node.new("h3", trait, e)
+            elsif e.name == "h4"
+                trait = nil
+                trait = e['id'] unless e['id'] =~ /^heading__/
+                docstruc.push Node.new("h4", trait, e)
+            elsif e.name == "div" && e['class'] == 'imageblock'
+                docstruc.push Node.new("imageblock", nil, e)
+            elsif e.name == "table"
+                rows = 0
+				e.xpath(".//tr").each  { |r|
 					rows += 1
 				}
-				docstruc.push Node.new("table", rows, t)
-			}
-			n.xpath(".//ul").each  { |t|
-				li = 0
-				t.xpath(".//li").each  { |r|
+				docstruc.push Node.new("table", rows, e)
+            elsif e.name == "ul"
+                li = 0
+				e.xpath(".//li").each  { |r|
 					li += 1
 				}
-				docstruc.push Node.new("ul", li, t)
-			}
-			n.xpath(".//ol").each  { |t|
-				li = 0
-				t.xpath(".//li").each  { |r|
+				docstruc.push Node.new("ul", li, e)
+            elsif e.name == "ol"
+                li = 0
+				e.xpath(".//li").each  { |r|
 					li += 1
 				}
-				docstruc.push Node.new("ol", li, t)
-			}
-		}
-		@docstruc = docstruc
-		return docstruc
+				docstruc.push Node.new("ol", li, e)
+            elsif e.name == "div" && e['class'] == 'listingblock'
+                docstruc.push Node.new("listingblock", nil, e)
+            end
+        }
+        @docstruc = docstruc
+        puts docstruc
+        return docstruc
 	end
 	
 	def get_first_structure_difference(a, b)
