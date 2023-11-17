@@ -643,20 +643,14 @@ class SingleDocFile
         tmpstruc = tdoc.search('*') #.map(&:name)
         puts tmpstruc.map(&:name)
         tmpstruc.each { |e|
-            if e.name == "h2"
+            if [ "h2", "h3", "h4" ].include? e.name
                 trait = nil
-                trait = e['id'] unless e['id'] =~ /^heading__/
-                docstruc.push Node.new("h2", trait, e)
-            elsif e.name == "h3"
-                trait = nil
-                trait = e['id'] unless e['id'] =~ /^heading__/
-                docstruc.push Node.new("h3", trait, e)
-            elsif e.name == "h4"
-                trait = nil
-                trait = e['id'] unless e['id'] =~ /^heading__/
-                docstruc.push Node.new("h4", trait, e)
+                trait = e['id'] unless e['id'] =~ /^(_|heading__)/
+                docstruc.push Node.new(e.name, trait, e)
             elsif e.name == "div" && e['class'] == 'imageblock'
                 docstruc.push Node.new("imageblock", nil, e)
+            elsif e.name == "span" && e['class'] == 'image-inline'
+                docstruc.push Node.new("imageinline", nil, e)
             elsif e.name == "table"
                 rows = 0
 				e.xpath(".//tr").each  { |r|
@@ -685,13 +679,20 @@ class SingleDocFile
 	end
 	
 	def get_first_structure_difference(a, b)
+        @structdiffs = 0
 		items = [ a.size, b.size ].max
 		0.upto(items - 1) { |n|
-			puts a[n].type + " " + a[n].trait.to_s + " " + a[n].data.to_s + " " + b[n].type + " " + b[n].trait.to_s + " " + b[n].data.to_s
-			return [ a[n].data, "empty" ] if b[n].nil?
-			return [ "empty", b[n].data ] if a[n].nil?
+            if b[n].nil?
+                @structdiffs = 1
+                return [ a[n].data, Nokogiri::XML::DocumentFragment.parse("<b>Empty") ]
+            end
+            if a[n].nil?
+                @structdiffs = 1
+                return [ Nokogiri::XML::DocumentFragment.parse("<b>Empty"), b[n].data ]
+            end
+            puts a[n].type + " " + a[n].trait.to_s + " " + a[n].data.to_s + " " + b[n].type + " " + b[n].trait.to_s + " " + b[n].data.to_s
 			unless (a[n].type == b[n].type && a[n].trait.to_s == b[n].trait.to_s)
-				#puts a[n].type + " " + a[n].trait.to_s + " " + b[n].type + " " + b[n].trait.to_s
+				@structdiffs = 1
 				return [ a[n].data, b[n].data ] # unless (a[n].type == b[n].type && a[n].trait.to_s == b[n].trait.to_s)
 			end
 		}
