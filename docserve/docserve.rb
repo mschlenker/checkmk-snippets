@@ -641,7 +641,7 @@ class SingleDocFile
 		tdoc = Nokogiri::HTML.parse(@html)
 		tdoc.search(".//div[@class='main-nav__content']").remove
         tmpstruc = tdoc.search('*') #.map(&:name)
-        puts tmpstruc.map(&:name)
+        # puts tmpstruc.map(&:name)
         tmpstruc.each { |e|
             if [ "h2", "h3", "h4" ].include? e.name
                 trait = nil
@@ -674,25 +674,21 @@ class SingleDocFile
             end
         }
         @docstruc = docstruc
-        puts docstruc
+        # puts docstruc
         return docstruc
 	end
 	
 	def get_first_structure_difference(a, b)
-        @structdiffs = 0
 		items = [ a.size, b.size ].max
 		0.upto(items - 1) { |n|
             if b[n].nil?
-                @structdiffs = 1
-                return [ a[n].data, Nokogiri::XML::DocumentFragment.parse("<b>Empty") ]
+                return [ a[n].data, Nokogiri::XML::DocumentFragment.parse("<b>Empty</b>") ]
             end
             if a[n].nil?
-                @structdiffs = 1
-                return [ Nokogiri::XML::DocumentFragment.parse("<b>Empty"), b[n].data ]
+                return [ Nokogiri::XML::DocumentFragment.parse("<b>Empty</b>"), b[n].data ]
             end
             puts a[n].type + " " + a[n].trait.to_s + " " + a[n].data.to_s + " " + b[n].type + " " + b[n].trait.to_s + " " + b[n].data.to_s
 			unless (a[n].type == b[n].type && a[n].trait.to_s == b[n].trait.to_s)
-				@structdiffs = 1
 				return [ a[n].data, b[n].data ] # unless (a[n].type == b[n].type && a[n].trait.to_s == b[n].trait.to_s)
 			end
 		}
@@ -1265,9 +1261,27 @@ if $buildall > 0 || $prebuild.size > 0
 			filename = f.sub(/html$/, 'asciidoc').sub(/^\/latest/, '')
 			s = SingleDocFile.new(filename, 1)
 			$cachedfiles[filename] = s
-			html = $cachedfiles[filename].to_html
+            otherstruc = nil
+            if $structure > 0
+                ptoks = f.split('/')
+				otherstruc = []
+				otherlangs = [ "de", "en" ] - [ ptoks[-2] ]
+				otherfile = "/" + ptoks[-3] + "/" + otherlangs[0] + "/" + ptoks[-1]
+				if $html.include?("/" + ptoks[-3] + "/" + otherlangs[0] + "/" + ptoks[-1])
+					unless $cachedfiles.has_key? otherfile
+						otherfilename = "/" + otherlangs[0] + "/" + ptoks[-1].sub(/\.html$/, ".asciidoc")
+						osdoc = SingleDocFile.new(otherfilename, 1)
+						$cachedfiles[otherfile] = osdoc
+					end
+					otherstruc = $cachedfiles[otherfile].check_structure
+				end
+				puts otherstruc.join(", ")
+ 			end
+			html = $cachedfiles[filename].to_html(otherstruc)
+			# html = $cachedfiles[filename].to_html
 			$total_errors += $cachedfiles[filename].broken_links.keys
 			$total_errors += $cachedfiles[filename].misspelled
+            $total_errors += [ 'structure' ] if $cachedfiles[filename].structerrors > 0
 			$files_built += 1
 		end
 	}
