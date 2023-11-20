@@ -1188,7 +1188,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				html = File.read __dir__ + "/" + ptoks[-1]
 				ctype= $mimetypes["png"]
 			elsif ptoks.include?("errors.csv")
-				html = "\Filename\";\"Broken links\";\"Missing includes\";\"Spellcheck errors\";\"Structure mismatch\";\n"
+				html = "\Filename\";\"Broken links\";\"Missing includes\";\"Spellcheck errors\";\"Structure mismatch\";\"Non-ASCII in code box\";\n"
 				$cachedfiles.each { |f, o|
 					unless o.errorline.nil?
 						html = html + o.errorline
