@@ -102,6 +102,7 @@ $ignorebroken = [
 
 $allowed = [] # Store a complete list of all request paths
 $html = [] # Store a list of all HTML files
+$images = [] # Store a list of all images
 $starttime = Time.now
 
 def create_config
@@ -204,12 +205,14 @@ def create_filelist
 	Dir.entries($basepath + "/images").each { |f|
 		if f =~ /\.(png|jpeg|jpg|svg)$/
 			$allowed.push "/latest/images/" + f
+            $images.push "/latest/images/" + f
 		end
 	}
 	# Allow all icons
 	Dir.entries($basepath + "/images/icons").each { |f|
 		if f =~ /\.(png|jpeg|jpg|svg)$/
 			$allowed.push "/latest/images/icons/" + f
+            $images.push "/latest/images/icons/" + f
 		end
 	}
 	# Allow all files in any subdirectory in assets
@@ -227,6 +230,7 @@ def create_filelist
 		$allowed.push "/latest/lunr.index.#{lang}.js"
 	}
 	$allowed.push "/favicon.ico"
+    $allowed.push "/favicon.png"
 	$allowed.push "/errors.csv"
 	$allowed.push "/errors.html"
 	$allowed.push "/wordcount.html"
@@ -648,9 +652,9 @@ class SingleDocFile
                 trait = e['id'] unless e['id'] =~ /^(_|heading__)/
                 docstruc.push Node.new(e.name, trait, e)
             elsif e.name == "div" && e['class'] == 'imageblock'
-                docstruc.push Node.new("imageblock", nil, e)
+                docstruc.push Node.new("imageblock", e['src'], e)
             elsif e.name == "span" && e['class'] == 'image-inline'
-                docstruc.push Node.new("imageinline", nil, e)
+                docstruc.push Node.new("imageinline", e['src'], e)
             elsif e.name == "table"
                 rows = 0
 				e.xpath(".//tr").each  { |r|
@@ -1181,6 +1185,9 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 			elsif ptoks.include?("favicon.ico")
 				html = File.read __dir__ + "/" + ptoks[-1]
 				ctype= $mimetypes["ico"]
+            elsif ptoks.include?("favicon.png")
+				html = File.read __dir__ + "/" + ptoks[-1]
+				ctype= $mimetypes["png"]
 			elsif ptoks.include?("errors.csv")
 				html = "\Filename\";\"Broken links\";\"Missing includes\";\"Spellcheck errors\";\n"
 				$cachedfiles.each { |f, o|
