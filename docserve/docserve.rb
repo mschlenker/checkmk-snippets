@@ -93,7 +93,8 @@ $mimetypes = {
 	"svg" => "image/svg+xml",
 	"ico" => "image/vnd.microsoft.icon",
 	"json" => "application/json",
-	"csv" => "text/csv"
+	"csv" => "text/csv",
+    "txt" => "text/plain",
 }
 # Links that are internally used, but redirected externaly.
 $ignorebroken = [
@@ -205,14 +206,14 @@ def create_filelist
 	Dir.entries($basepath + "/images").each { |f|
 		if f =~ /\.(png|jpeg|jpg|svg)$/
 			$allowed.push "/latest/images/" + f
-            $images.push "/latest/images/" + f
+            $images.push "../images/" + f
 		end
 	}
 	# Allow all icons
 	Dir.entries($basepath + "/images/icons").each { |f|
 		if f =~ /\.(png|jpeg|jpg|svg)$/
 			$allowed.push "/latest/images/icons/" + f
-            $images.push "/latest/images/icons/" + f
+            $images.push "../images/icons/" + f
 		end
 	}
 	# Allow all files in any subdirectory in assets
@@ -234,6 +235,8 @@ def create_filelist
 	$allowed.push "/errors.csv"
 	$allowed.push "/errors.html"
 	$allowed.push "/wordcount.html"
+    $allowed.push "/images.html"
+    $allowed.push "/images.txt"
 	$allowed.push "/latest/index.html"
 	$allowed.push "/latest/"
 	$allowed.push "/latest"
@@ -254,7 +257,7 @@ def prepare_menu
 	[ "de", "en" ].each { |lang|
 		path = "/#{lang}/menu.asciidoc"
 		s = SingleDocFile.new path
-		$cachedfiles[path] = s
+		$cachedfiles[path.gsub('.asciidoc', '.html')] = s
 	}
 end
 
@@ -414,6 +417,7 @@ class SingleDocFile
 		@anchors = []
 		@depth = depth
 		@docstruc = []
+        @images = []
 		@structerrors = 0
 		reread
 	end
@@ -465,19 +469,20 @@ class SingleDocFile
 	def check_local_anchors(path, anchor)
 		return true if @depth < 1
 		fullpath = "/latest/#{@lang}/#{path}"
-		if $cachedfiles.has_key? fullpath
-			$stderr.puts "Trying to serve from memory cache... #{fullpath}"
+        spath = "/#{@lang}/#{path}"
+		if $cachedfiles.has_key? spath
+			$stderr.puts "Trying to serve from memory cache... #{path} #{spath}"
 		else
 			filename = "/#{@lang}/#{path}".sub(/\.html$/, ".asciidoc")
 			#$stderr.puts "Add file to cache #{filename}"
 			s = SingleDocFile.new(filename, @depth - 1)
-			$cachedfiles[fullpath] = s
+			$cachedfiles[spath] = s
 		end
-		return false if $cachedfiles[fullpath].nil?
+		return false if $cachedfiles[spath].nil?
 		#html = $cachedfiles[fullpath].to_html
-		$stderr.puts "Now find the link in the freshly built file. #{fullpath}"
-		return true if $cachedfiles[fullpath].anchors.include? anchor
-		return $cachedfiles[fullpath].search_id(anchor)
+		$stderr.puts "Now find the link in the freshly built file. #{spath}"
+		return true if $cachedfiles[spath].anchors.include? anchor
+		return $cachedfiles[spath].search_id(anchor)
 		return false
 	end
 	
@@ -492,6 +497,7 @@ class SingleDocFile
 		tdoc.css("img").each { |a|
 			unless a["src"].nil?
 				src = a["src"]
+                @images.push src
 				if src =~ /^\.\.\//
 					src = src.gsub( /^\.\./, '')
 					unless File.exist?($basepath + src)
@@ -531,6 +537,9 @@ class SingleDocFile
 					# $stderr.puts "Found link #{fname} in list of allowed files!"
 					if anchor.size > 0 && @depth > 0
 						stats.push "Might need to build #{href} # #{anchor}"
+                        if anchor =~ /^_/
+                            broken_links["/latest/" + @lang + "/" + href + "#" + anchor] = "Target anchor is forbidden automatic style"
+                        end
 						unless check_local_anchors(href, anchor)
 							broken_links["/latest/" + @lang + "/" + href + "#" + anchor] = "Target anchor missing"
 						end
@@ -548,12 +557,15 @@ class SingleDocFile
 					resp = Net::HTTP.get_response(url)
 					$stderr.puts resp
 					$cachedlinks[href] = ""
-					if resp.code.to_i > 400 && resp.code.to_i < 500
+					if [ 401, 402 ].include?(resp.code) || (resp.code.to_i > 403 && resp.code.to_i < 500)
 						$cachedlinks[href] = resp.code
 						$cachedlinks[href] = "404 – File not found" if resp.code == "404"
 						$cachedlinks[href] = "401 – Unauthorized" if resp.code == "401"
 						broken_links[href] = $cachedlinks[href]
 					end
+                    if resp.code == 403
+                        puts "WARNING: #{href} answers with 403"
+                    end
 				rescue ArgumentError
 					$cachedlinks[href] = "Could not convert URI"
 					broken_links[href] = $cachedlinks[href]
@@ -613,30 +625,6 @@ class SingleDocFile
         }
         return nodes
     end
-    	
-	def get_imgnodes(h, known)
-		nodes = []
-		h.xpath(".//div[@class='imageblock']").each  { |t|
-			unless known.include? t.to_html
-				nodes.push Node.new("img", nil, t)
-				known.push t.to_html
-			end
-		}
-		h.xpath(".//div[@class='imageblock border']").each  { |t|
-			unless known.include? t.to_html
-				nodes.push Node.new("img", nil, t)
-				known.push t.to_html
-			end
-		}
-		h.xpath(".//span[@class='image-inline']").each  { |t|
-			unless known.include? t.to_html
-				nodes.push Node.new("img", nil, t)
-				known.push t.to_html
-			end
-		}
-		return nodes, known
-	end
-	
 	
 	def check_structure(build=true)
 		to_html if build
@@ -1036,7 +1024,7 @@ class SingleDocFile
 			broken_links = check_links hdoc
 			@broken_links = broken_links
             broken_code = check_codeboxes hdoc
-			total_errors = @errors.size + broken_links.size + @misspelled.size + @missing_includes.size + structerrors + broken_code.size
+			total_errors = @errors.size + broken_links.size + @misspelled.size + @missing_includes.size + @structerrors + broken_code.size
 			$stderr.puts "Total errors encountered: #{total_errors}"
 			if total_errors > 0
 				hname = @filename.sub(/asciidoc$/, 'html')
@@ -1073,24 +1061,34 @@ class SingleDocFile
 					enode += @misspelled.join(" ")
 					enode += "</p>"
 					@errorline = @errorline + @misspelled.size.to_s  + ";\n"
-					@html_errorline = @html_errorline + "<td>" + @misspelled.size.to_s + "</td></tr>\n"
+					@html_errorline = @html_errorline + "<td>" + @misspelled.size.to_s + "</td>"
 				else
-					@errorline = @errorline + "0;\n"
-					@html_errorline = @html_errorline + "<td>0</td></tr>\n"
+					@errorline = @errorline + "0;"
+					@html_errorline = @html_errorline + "<td>0</td>"
+				end
+				if @structerrors > 0
+					enode += "<h3>Structure not matching</h3><p><b>This:</b> "
+					enode += struct_delta[0].to_html
+					enode += "</p><p><b>Other:</b> "
+					enode += struct_delta[1].to_html
+					enode += "</p>"
+                    @errorline = @errorline + "1;\n"
+                    @html_errorline = @html_errorline + "<td>1</td>"
+                else
+                    @errorline = @errorline + "0;\n"
+                    @html_errorline = @html_errorline + "<td>0</td>"
 				end
                 if broken_code.size > 0
                     enode += "<h3>Found codeboxes with non ASCII chars</h3><p>"
                     broken_code.each { |n|
                         enode += "<pre class='pygments highlight'>" + n + '</pre>'
                     }
+                    @errorline = @errorline + broken_code.size.to_s + ";\n"
+                    @html_errorline = @html_errorline + "<td>" + broken_code.size.to_s + "</td></tr>\n"
+                else
+                    @errorline = @errorline + "0;\n"
+                    @html_errorline = @html_errorline + "<td>0</td></tr>\n"
                 end
-				if structerrors > 0
-					enode += "<h3>Structure not matching</h3><p><b>This:</b> "
-					enode += struct_delta[0].to_html
-					enode += "</p><p><b>Other:</b> "
-					enode += struct_delta[1].to_html
-					enode += "</p>"
-				end
 				enode += "</div>\n"
 				if cnode.nil?
 					$stderr.puts "Preamble not found!"
@@ -1101,7 +1099,7 @@ class SingleDocFile
 				end
 			end
 			mcont = hdoc.css("div[class='main-nav__content']")[0]
-			mcont.inner_html = $cachedfiles["/" + @lang + "/menu.asciidoc"].to_html unless mcont.nil?
+			mcont.inner_html = $cachedfiles["/" + @lang + "/menu.html"].to_html unless mcont.nil?
 			body  = hdoc.at_css "body"
 			body.add_child("<script>\n" + 
 				File.read(__dir__ + "/autoreload.js").
@@ -1121,13 +1119,14 @@ class SingleDocFile
 		end
 		return html
 	end
-	attr_accessor :mtime, :errorline, :html_errorline, :words, :wordscount, :maxwords, :lang, :filename, :errors, :misspelled, :broken_links, :anchors, :docstruc, :structerrors
+	attr_accessor :mtime, :errorline, :html_errorline, :words, :wordscount, :maxwords, :lang, :filename, :errors, :misspelled, :broken_links, :anchors, :docstruc, :structerrors, :images
 end
 
 class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 	def do_GET (request, response)
 		html = nil
 		path = request.path
+        spath = path.gsub(/^\/latest/, '')
 		response.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, "/latest/en/") if path == "/"
 		response.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, "/latest/en/index.html") if path == "/latest/en/" || path == "/latest/en"
 		response.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, "/latest/de/index.html") if path == "/latest/de/" || path == "/latest/de"
@@ -1139,18 +1138,18 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 		create_filelist unless $allowed.include? path.strip
 		if $html.include? path.strip
 			otherstruc = nil
-			if $cachedfiles.has_key? path.strip
-				$stderr.puts "Trying to serve from memory cache... #{path.strip}"
+			if $cachedfiles.has_key? spath.strip
+				$stderr.puts "Trying to serve from memory cache... #{spath.strip}"
 			else
 				filename = "/" + ptoks[-2] + "/" + ptoks[-1].sub(/\.html$/, ".asciidoc")
 				$stderr.puts "Add file to cache #{filename}"
 				s = SingleDocFile.new(filename, 1)
-				$cachedfiles[path] = s
+				$cachedfiles[spath] = s
 			end
 			if $structure > 0
 				otherstruc = []
 				otherlangs = [ "de", "en" ] - [ ptoks[-2] ]
-				otherfile = "/" + ptoks[-3] + "/" + otherlangs[0] + "/" + ptoks[-1]
+				otherfile = "/" + otherlangs[0] + "/" + ptoks[-1]
 				if $html.include?("/" + ptoks[-3] + "/" + otherlangs[0] + "/" + ptoks[-1])
 					unless $cachedfiles.has_key? otherfile
 						otherfilename = "/" + otherlangs[0] + "/" + ptoks[-1].sub(/\.html$/, ".asciidoc")
@@ -1161,7 +1160,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				end
 				puts otherstruc.join(", ")
  			end
-			html = $cachedfiles[path].to_html(otherstruc)
+			html = $cachedfiles[spath].to_html(otherstruc)
 			response.status = status
 			response.content_type = "text/html"
 			response.body = html
@@ -1189,7 +1188,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				html = File.read __dir__ + "/" + ptoks[-1]
 				ctype= $mimetypes["png"]
 			elsif ptoks.include?("errors.csv")
-				html = "\Filename\";\"Broken links\";\"Missing includes\";\"Spellcheck errors\";\n"
+				html = "\Filename\";\"Broken links\";\"Missing includes\";\"Spellcheck errors\";\"Structure mismatch\";\n"
 				$cachedfiles.each { |f, o|
 					unless o.errorline.nil?
 						html = html + o.errorline
@@ -1198,11 +1197,12 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				ctype= $mimetypes["csv"]
 			elsif ptoks.include?("errors.html")
 				html = "<!DOCTYPE html>\n<html><head><title>Rabbithole</title></head><body>\n" +
-					"<table><tr><td>Filename</td><td>Broken links</td><td>Missing includes</td>" +
-					"<td>Spellcheck errors</td></tr>\n"
-				$cachedfiles.each { |f, o|
-					unless o.html_errorline.nil?
-						html = html + o.html_errorline
+					"<table><tr><td><b>Filename</b></td><td><b>Broken links</b></td><td><b>Missing includes</b></td>" +
+					"<td><b>Spellcheck errors</b></td><td><b>Structure mismatch</b></td><td><b>Non-ASCII in code box</b></td></tr>\n"
+				$cachedfiles.keys.uniq.sort.each { |f|
+					unless $cachedfiles[f].html_errorline.nil?
+                        puts "+" + f + "+"
+						html = html + $cachedfiles[f].html_errorline
 					end
 				}
 				html = html + "</table></body></html>"
@@ -1216,13 +1216,47 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				}
 				html = html + "</table></body></html>"
 				ctype= $mimetypes["html"]
+            elsif ptoks.include?("images.html")
+                allimages = []
+                original = 0
+                $cachedfiles.each { |f, o|
+                    allimages = allimages + o.images
+                }
+                allimages.uniq!
+                unused = $images - allimages
+                html = "<!DOCTYPE html>\n<html><head> <meta charset=\"UTF-8\"> <title>Imagestats</title></head><body>\n"
+                html = html + "<p>Images present: " + $images.length.to_s
+                html = html + "\n<br />Images used: " + allimages.length.to_s
+                list = ''
+                unused.each { |i|
+                    if i =~ /_original\./
+                        original += 1
+                    else
+                        list = list + "<li><a href='/latest/en/" + i + "'>" + i.gsub(/^\.\.\//, '') + "</a></li>\n"
+                    end
+                }
+                html = html + "\n<br />Original images: " + original.to_s
+                html = html + "\n</p><h2>Unused images</h2>\n<ul>\n" + list + "</ul></body></html>"
+                ctype= $mimetypes["html"]
+            elsif ptoks.include?("images.txt")
+                allimages = []
+                $cachedfiles.each { |f, o|
+                    allimages = allimages + o.images
+                }
+                allimages.uniq!
+                unused = $images - allimages
+                html = ''
+                unused.each { |i|
+                    html = html + i.gsub(/^\.\.\//, '') + "\n" unless i =~ /_original\./
+                }
+                ctype= $mimetypes["txt"]
 			elsif ptoks.include?("lunr.index.en.js") || ptoks.include?("lunr.index.de.js")
 				ttoks = ptoks[-1].split(".")
 				html = $lunr[ttoks[2]]
 				ctype= $mimetypes["js"]
 			elsif ptoks.include?("last_change")
 				# Assume path like "last_change/en/agent_linux.html"
-				html_path = "/latest/" + ptoks[-2] + "/" + ptoks[-1]
+				html_path = "/" + ptoks[-2] + "/" + ptoks[-1]
 				if $cachedfiles.has_key? html_path
 					html = "{ \"last-change\" : " + $cachedfiles[html_path].check_age.to_i.to_s + " }"
 				else
@@ -1266,14 +1300,15 @@ if $buildall > 0 || $prebuild.size > 0
 		if html2build.include?(f) || $buildall > 0
 			$stderr.puts "---> INFO: pre-building requested, building #{f}"
 			filename = f.sub(/html$/, 'asciidoc').sub(/^\/latest/, '')
+            spath = f.sub(/^\/latest/, '')
 			s = SingleDocFile.new(filename, 1)
-			$cachedfiles[filename] = s
+			$cachedfiles[spath] = s
             otherstruc = nil
             if $structure > 0
                 ptoks = f.split('/')
 				otherstruc = []
 				otherlangs = [ "de", "en" ] - [ ptoks[-2] ]
-				otherfile = "/" + ptoks[-3] + "/" + otherlangs[0] + "/" + ptoks[-1]
+				otherfile = "/" + otherlangs[0] + "/" + ptoks[-1]
 				if $html.include?("/" + ptoks[-3] + "/" + otherlangs[0] + "/" + ptoks[-1])
 					unless $cachedfiles.has_key? otherfile
 						otherfilename = "/" + otherlangs[0] + "/" + ptoks[-1].sub(/\.html$/, ".asciidoc")
@@ -1284,11 +1319,11 @@ if $buildall > 0 || $prebuild.size > 0
 				end
 				puts otherstruc.join(", ")
  			end
-			html = $cachedfiles[filename].to_html(otherstruc)
+			html = $cachedfiles[spath].to_html(otherstruc)
 			# html = $cachedfiles[filename].to_html
-			$total_errors += $cachedfiles[filename].broken_links.keys
-			$total_errors += $cachedfiles[filename].misspelled
-            $total_errors += [ 'structure' ] if $cachedfiles[filename].structerrors > 0
+			$total_errors += $cachedfiles[spath].broken_links.keys
+			$total_errors += $cachedfiles[spath].misspelled
+            $total_errors += [ 'structure' ] if $cachedfiles[spath].structerrors > 0
 			$files_built += 1
 		end
 	}
