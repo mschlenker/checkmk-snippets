@@ -1105,7 +1105,7 @@ class SingleDocFile
                     @html_errorline = @html_errorline + "<td>0</td>"
 				end
                 if broken_code.size > 0
-                    enode += "<h3>Found codeboxes with non ASCII chars</h3><p>"
+                    enode += "<h3>Found codeboxes with non ASCII chars or clickable link</h3><p>"
                     broken_code.each { |n|
                         enode += "<pre class='pygments highlight'>" + n + '</pre>'
                     }
