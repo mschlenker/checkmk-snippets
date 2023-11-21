@@ -606,8 +606,12 @@ class SingleDocFile
         nodes = get_codeboxes(hdoc)
         nodes.each { |n|
             begin
-                s = n.to_s
-                @nonascii.each { |t| s.gsub!(t, " ") }
+                s = n.clone.to_s
+                @nonascii.each { |t| s.gsub!(t, '') }
+                s.gsub!(/[[:space:]]+/, '')
+                s.gsub!(/[[:word:]]+/, '')
+                s.gsub!('…​', '')
+                s.gsub!('…', '')
                 s.encode(Encoding::ASCII)
             rescue Encoding::UndefinedConversionError
                 broken_verbatim.push(n)
@@ -639,7 +643,7 @@ class SingleDocFile
                 trait = nil
                 trait = e['id'] unless e['id'] =~ /^(_|heading__)/
                 docstruc.push Node.new(e.name, trait, e)
-            elsif e.name == "div" && e['class'] == 'imageblock'
+            elsif e.name == "div" && ( e['class'] == 'imageblock' || e['class'] == 'imageblock border' )
                 docstruc.push Node.new("imageblock", e['src'], e)
             elsif e.name == "span" && e['class'] == 'image-inline'
                 docstruc.push Node.new("imageinline", e['src'], e)
@@ -673,13 +677,14 @@ class SingleDocFile
 	def get_first_structure_difference(a, b)
 		items = [ a.size, b.size ].max
 		0.upto(items - 1) { |n|
+            # puts "A: #{a}, B: #{a}"
             if b[n].nil?
                 return [ a[n].data, Nokogiri::XML::DocumentFragment.parse("<b>Empty</b>") ]
             end
             if a[n].nil?
                 return [ Nokogiri::XML::DocumentFragment.parse("<b>Empty</b>"), b[n].data ]
             end
-            puts a[n].type + " " + a[n].trait.to_s + " " + a[n].data.to_s + " " + b[n].type + " " + b[n].trait.to_s + " " + b[n].data.to_s
+            puts a[n].type + " " + a[n].trait.to_s + " vs. " + b[n].type + " " + b[n].trait.to_s
 			unless (a[n].type == b[n].type && a[n].trait.to_s == b[n].trait.to_s)
 				return [ a[n].data, b[n].data ] # unless (a[n].type == b[n].type && a[n].trait.to_s == b[n].trait.to_s)
 			end
