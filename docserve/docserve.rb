@@ -52,6 +52,7 @@ $cachedfiles = Hash.new
 $cachedincludes = Hash.new
 # Cache links, only check once per session, empty string means everything is OK
 $cachedlinks = Hash.new
+$linksusedby = Hash.new
 # Prepare dictionaries
 $dictionaries = Hash.new
 # Create a list of files to build at boot
@@ -237,6 +238,7 @@ def create_filelist
 	$allowed.push "/wordcount.html"
     $allowed.push "/images.html"
     $allowed.push "/images.txt"
+    $allowed.push "/links.html"
 	$allowed.push "/latest/index.html"
 	$allowed.push "/latest/"
 	$allowed.push "/latest"
@@ -492,6 +494,7 @@ class SingleDocFile
 		return broken_links if @depth < 1
 		tdoc = doc.clone
 		tdoc.search(".//div[@class='main-nav__content']").remove
+        tdoc.search(".//div[@class='main-nav__utils']").remove
 		stats = Array.new
 		return broken_links if $checklinks < 1
 		tdoc.css("img").each { |a|
@@ -517,7 +520,7 @@ class SingleDocFile
 			else
 				href = "."
 			end
-			if href =~ /^\./ || href =~ /^\// || href == "" || href.nil? || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /tribe29\.com\// || href =~ /docs\.checkmk\.com\// || href =~ /^mailto/
+			if href == 'https://checkmk.com' || href =~ /^\./ || href =~ /^\// || href == "" || href.nil? || href =~ /checkmk-docs\/edit\/localdev\// || href =~ /docs\.checkmk\.com\// || href =~ /^mailto/
 				if href == "" && anchor.size > 0
 					stats.push "Checked anchor in this file: ##{anchor}"
 					# $stderr.puts "Found anchor #{href} # #{anchor}"
@@ -528,7 +531,8 @@ class SingleDocFile
 			elsif $cachedlinks.has_key? href
 				stats.push "Used cached link: #{href}"
 				broken_links[href] = $cachedlinks[href] unless $cachedlinks[href] == ""
-			elsif href =~ /^[0-9a-z._-]+$/ 
+                $linksusedby[href].push @filename.sub(/asciidoc$/, 'html') unless $linksusedby[href].include? @filename.sub(/asciidoc$/, 'html')
+			elsif href =~ /^[0-9a-z._-]+$/
 				# Check local links against file list:
 				fname = "/latest/" + @lang + "/" + href
 				if $ignorebroken.include? href
@@ -550,6 +554,11 @@ class SingleDocFile
 					broken_links["/latest/" + @lang + "/" + href] = "404 – File not found"
 				end
 			else
+                if $linksusedby.has_key? href 
+                    $linksusedby[href].push @filename.sub(/asciidoc$/, 'html') unless $linksusedby[href].include? @filename.sub(/asciidoc$/, 'html')
+                else
+                    $linksusedby[href] = [ @filename.sub(/asciidoc$/, 'html') ]
+                end
 				begin
 					stats.push "Retrieving #{href}"
 					headers = nil
@@ -605,6 +614,11 @@ class SingleDocFile
         broken_verbatim = []
         nodes = get_codeboxes(hdoc)
         nodes.each { |n|
+            links = 0
+            Nokogiri::HTML5.fragment(n).css("a").each { |a|
+                links += 1
+            }
+            broken_verbatim.push(n) if links > 0
             begin
                 s = n.clone.to_s
                 @nonascii.each { |t| s.gsub!(t, '') }
@@ -787,7 +801,7 @@ class SingleDocFile
 				valid = true if sp.spellcheck(checkw.strip) == true
 				valid = true if sp.spellcheck(checkw.strip.downcase) == true
 			}
-			puts "+#{checkw}+" if valid == false
+			$stderr.puts "Missspelled word in #{@filename}: +#{checkw}+" if valid == false
 			@misspelled.push(checkw.strip) if valid == false
 		}
 	end
@@ -1036,7 +1050,14 @@ class SingleDocFile
 				@errorline = "http://localhost:#{$port}/latest#{hname};"
 				@html_errorline = "<tr><td><a href=\"http://localhost:#{$port}/latest#{hname}\" target=\"_blank\">#{hname}</a></td>"
 				enode = "<div id='docserveerrors'>"
-				enode += "<h3>Asciidoctor errors</h3><p class='errmono'>" + @errors.join("<br />") +  "</p>" if @errors.size > 0
+                if @errors.size > 0
+                    enode += "<h3>Asciidoctor errors</h3><p class='errmono'>" + @errors.join("<br />") +  "</p>"
+                    @errorline = @errorline + @errors.size.to_s  + ";"
+                    @html_errorline = @html_errorline + "<td>" + @errors.size.to_s + "</td>"
+                else
+                    @errorline = @errorline + "0;"
+					@html_errorline = @html_errorline + "<td>0</td>"
+                end
 				if broken_links.size > 0
 					enode += "<h3>Broken links</h3><ul>"
 					broken_links.each { |l,p|
@@ -1065,7 +1086,7 @@ class SingleDocFile
 					enode += "<h3>Misspelled or unknown words</h3><p>"
 					enode += @misspelled.join(" ")
 					enode += "</p>"
-					@errorline = @errorline + @misspelled.size.to_s  + ";\n"
+					@errorline = @errorline + @misspelled.size.to_s  + ";"
 					@html_errorline = @html_errorline + "<td>" + @misspelled.size.to_s + "</td>"
 				else
 					@errorline = @errorline + "0;"
@@ -1077,10 +1098,10 @@ class SingleDocFile
 					enode += "</p><p><b>Other:</b> "
 					enode += struct_delta[1].to_html
 					enode += "</p>"
-                    @errorline = @errorline + "1;\n"
+                    @errorline = @errorline + "1;"
                     @html_errorline = @html_errorline + "<td>1</td>"
                 else
-                    @errorline = @errorline + "0;\n"
+                    @errorline = @errorline + "0;"
                     @html_errorline = @html_errorline + "<td>0</td>"
 				end
                 if broken_code.size > 0
@@ -1193,7 +1214,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				html = File.read __dir__ + "/" + ptoks[-1]
 				ctype= $mimetypes["png"]
 			elsif ptoks.include?("errors.csv")
-				html = "\Filename\";\"Broken links\";\"Missing includes\";\"Spellcheck errors\";\"Structure mismatch\";\"Non-ASCII in code box\";\n"
+				html = "\Filename\";\"Asciidoc errors\";\"Broken links\";\"Missing includes\";\"Spellcheck errors\";\"Structure mismatch\";\"Non-ASCII in code box\";\n"
 				$cachedfiles.each { |f, o|
 					unless o.errorline.nil?
 						html = html + o.errorline
@@ -1202,8 +1223,9 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 				ctype= $mimetypes["csv"]
 			elsif ptoks.include?("errors.html")
 				html = "<!DOCTYPE html>\n<html><head><title>Rabbithole</title></head><body>\n" +
-					"<table><tr><td><b>Filename</b></td><td><b>Broken links</b></td><td><b>Missing includes</b></td>" +
-					"<td><b>Spellcheck errors</b></td><td><b>Structure mismatch</b></td><td><b>Non-ASCII in code box</b></td></tr>\n"
+					"<table><tr><td><b>Filename</b></td><td><b>Asciidoc errors</b><td><b>Broken links</b></td>" +
+                    "<td><b>Missing includes</b></td><td><b>Spellcheck errors</b></td>" +
+                    "<td><b>Structure mismatch</b></td><td><b>Code box with non-ASCII or link</b></td></tr>\n"
 				$cachedfiles.keys.uniq.sort.each { |f|
 					unless $cachedfiles[f].html_errorline.nil?
                         puts "+" + f + "+"
@@ -1255,6 +1277,30 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
                     html = html + i.gsub(/^\.\.\//, '') + "\n" unless i =~ /_original\./
                 }
                 ctype= $mimetypes["txt"]
+            elsif ptoks.include?("links.html")
+                html = "<!DOCTYPE html>\n<html><head> <meta charset=\"UTF-8\"> <title>Linkstats</title></head><body>\n"
+                html = html + "<h2>Broken links</h2>\n<ul>\n"
+                $linksusedby.keys.sort.each { |l|
+                    unless $cachedlinks[l] == ''
+                        html = html + "<li><a href='" + l + "'>" + l + "</a> Used by:\n"
+                        $linksusedby[l].each { |t|
+                            html = html + "<a href='/latest" + t + "'>" + t + "</a>\n"
+                        }
+                        html = html + "</li>\n"
+                    end
+                }
+                html = html + "</ul>\n<h2>Working links</h2>\n<ul>\n"
+                $linksusedby.keys.sort.each { |l|
+                    if $cachedlinks[l] == ''
+                        html = html + "<li><a href='" + l + "'>" + l + "</a> Used by:\n"
+                        $linksusedby[l].each { |t|
+                            html = html + "<a href='/latest" + t + "'>" + t + "</a>\n"
+                        }
+                        html = html + "</li>\n"
+                    end
+                }
+                html = html + "\n</ul></body></html>"
+                ctype= $mimetypes["html"]
 			elsif ptoks.include?("lunr.index.en.js") || ptoks.include?("lunr.index.de.js")
 				ttoks = ptoks[-1].split(".")
 				html = $lunr[ttoks[2]]
