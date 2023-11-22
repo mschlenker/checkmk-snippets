@@ -1298,7 +1298,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
                 html = html + "<h2>Broken links</h2>\n<ul>\n"
                 $linksusedby.keys.sort.each { |l|
                     unless $cachedlinks[l].ok == true
-                        html = html + "<li><a href='" + l + "'>" + l + "</a>  (" + $cachedlinks[l].errorline + ") Used by:\n"
+                        html = html + "<li><a href='" + l + "'>" + l + "</a> (" + $cachedlinks[l].errorline + ") Used by:\n"
                         $linksusedby[l].each { |t|
                             html = html + "<a href='/latest" + t + "'>" + t + "</a>\n"
                         }
@@ -1308,7 +1308,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
                 html = html + "</ul>\n<h2>Working links with redirect</h2>\n<ul>\n"
                 $linksusedby.keys.sort.each { |l|
                     if $cachedlinks[l].ok == true && $cachedlinks[l].statuscode > 299
-                        html = html + "<li><a href='" + l + "'>" + l + "</a> Used by:\n"
+                        html = html + "<li><a href='" + l + "'>" + l + "</a> (" + $cachedlinks[l].statuscode.to_s + ")  Used by:\n"
                         $linksusedby[l].each { |t|
                             html = html + "<a href='/latest" + t + "'>" + t + "</a>\n"
                         }
@@ -1317,7 +1317,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
                 }
                 html = html + "</ul>\n<h2>Working links</h2>\n<ul>\n"
                 $linksusedby.keys.sort.each { |l|
-                    if $cachedlinks[l].ok == true && $cachedlinks[l].statuscode < 404
+                    if $cachedlinks[l].ok == true && $cachedlinks[l].statuscode < 300
                         html = html + "<li><a href='" + l + "'>" + l + "</a> Used by:\n"
                         $linksusedby[l].each { |t|
                             html = html + "<a href='/latest" + t + "'>" + t + "</a>\n"
