@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 # encoding: utf-8
 #
-# (C) 2022 Mattias Schlenker for tribe29 GmbH
+# (C) 2022, 2023 Mattias Schlenker for Checkmk GmbH
 
 require 'webrick'
 require 'fileutils'
@@ -21,6 +21,8 @@ end
 
 # create a struct to hold the node type, some attributes and the content of the node
 Node = Struct.new(:type, :trait, :data)
+# create a struct to hold information about links
+Link = Struct.new(:url, :ok, :lastcheck, :statuscode, :errorline)
 
 # require 'rexml/document'
 # require 'asciidoctor'
@@ -448,7 +450,7 @@ class SingleDocFile
 		@anchors.uniq!
 	end
 	
-	# Serach for an XML element that uses a ceratin ID. This usually is used as anchor.
+	# Search for an XML element that uses a ceratin ID. This usually is used as anchor.
 	def search_id(name)
 		found = false
 		tdoc = Nokogiri::HTML.parse(@html)
@@ -530,7 +532,7 @@ class SingleDocFile
 				end
 			elsif $cachedlinks.has_key? href
 				stats.push "Used cached link: #{href}"
-				broken_links[href] = $cachedlinks[href] unless $cachedlinks[href] == ""
+				broken_links[href] = $cachedlinks[href].errorline unless $cachedlinks[href].ok == true
                 $linksusedby[href].push @filename.sub(/asciidoc$/, 'html') unless $linksusedby[href].include? @filename.sub(/asciidoc$/, 'html')
 			elsif href =~ /^[0-9a-z._-]+$/
 				# Check local links against file list:
@@ -559,46 +561,60 @@ class SingleDocFile
                 else
                     $linksusedby[href] = [ @filename.sub(/asciidoc$/, 'html') ]
                 end
+                $cachedlinks[href] = Link.new(href, true, Time.now.to_i, -1, '')
 				begin
 					stats.push "Retrieving #{href}"
 					headers = nil
 					url = URI(href)
 					resp = Net::HTTP.get_response(url)
 					$stderr.puts resp
-					$cachedlinks[href] = ""
-					if [ 401, 402 ].include?(resp.code) || (resp.code.to_i > 403 && resp.code.to_i < 500)
-						$cachedlinks[href] = resp.code
-						$cachedlinks[href] = "404 – File not found" if resp.code == "404"
-						$cachedlinks[href] = "401 – Unauthorized" if resp.code == "401"
-						broken_links[href] = $cachedlinks[href]
+                    # Struct.new(:url, :ok, :lastcheck, :statuscode, :errorline)
+					if [ 401, 402 ].include?(resp.code.to_i) || (resp.code.to_i > 403 && resp.code.to_i <= 500)
+						$cachedlinks[href][:statuscode] = resp.code.to_i
+                        $cachedlinks[href][:ok] = false
+						$cachedlinks[href][:errorline] = "404 – File not found" if resp.code == "404"
+                        $cachedlinks[href][:errorline] = "500 – Internal Server Error" if resp.code == "500"
+						$cachedlinks[href][:errorline] = "401 – Unauthorized" if resp.code == "401"
+						broken_links[href] = $cachedlinks[href][:errorline]
+                    elsif resp.code.to_i > 0 && resp.code.to_i <= 400
+                        $cachedlinks[href][:statuscode] = resp.code.to_i
 					end
-                    if resp.code == 403
-                        puts "WARNING: #{href} answers with 403"
+                    if resp.code.to_i == 403
+                        $cachedlinks[href][:statuscode] = resp.code.to_i
+                        $stderr.puts "WARNING: #{href} answers with 403"
                     end
 				rescue ArgumentError
-					$cachedlinks[href] = "Could not convert URI"
-					broken_links[href] = $cachedlinks[href]
+                    $cachedlinks[href][:ok] = false
+					$cachedlinks[href][:errorline] = "Could not convert URI"
+					broken_links[href] = $cachedlinks[href][:errorline]
 				rescue EOFError
-					$cachedlinks[href] = "Could not parse response header"
-					broken_links[href] = $cachedlinks[href]
+                    $cachedlinks[href][:ok] = false
+					$cachedlinks[href][:errorline] = "Could not parse response header"
+					broken_links[href] = $cachedlinks[href][:errorline]
 				rescue SocketError
-					$cachedlinks[href] = "Host not found or port unavailable"
-					broken_links[href] = $cachedlinks[href]
+                    $cachedlinks[href][:ok] = false
+					$cachedlinks[href][:errorline] = "Host not found or port unavailable"
+					broken_links[href] = $cachedlinks[href][:errorline]
 				rescue Errno::ECONNRESET
-					$cachedlinks[href] = "Connection reset by peer"
-					broken_links[href] = $cachedlinks[href]
+                    $cachedlinks[href][:ok] = false
+					$cachedlinks[href][:errorline] = "Connection reset by peer"
+					broken_links[href] = $cachedlinks[href][:errorline]
 				rescue Errno::ECONNREFUSED
-					$cachedlinks[href] = "Connection refused"
-					broken_links[href] = $cachedlinks[href]
+                    $cachedlinks[href][:ok] = false
+					$cachedlinks[href][:errorline] = "Connection refused"
+					broken_links[href] = $cachedlinks[href][:errorline]
 				rescue OpenSSL::SSL::SSLError
-					$cachedlinks[href] = "Unspecified SSL error"
-					broken_links[href] = $cachedlinks[href]
+                    $cachedlinks[href][:ok] = false
+					$cachedlinks[href][:errorline] = "Unspecified SSL error"
+					broken_links[href] = $cachedlinks[href][:errorline]
 				rescue URI::InvalidURIError
-					$cachedlinks[href] = "Invalid URI error"
-					broken_links[href] = $cachedlinks[href]
+                    $cachedlinks[href][:ok] = false
+					$cachedlinks[href][:errorline] = "Invalid URI error"
+					broken_links[href] = $cachedlinks[href][:errorline]
 				rescue Net::OpenTimeout
-					$cachedlinks[href] = "Request timeout"
-					broken_links[href] = $cachedlinks[href]
+                    $cachedlinks[href][:ok] = false
+					$cachedlinks[href][:errorline] = "Request timeout"
+					broken_links[href] = $cachedlinks[href][:errorline]
 				end
 			end
 		}
@@ -1281,7 +1297,17 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
                 html = "<!DOCTYPE html>\n<html><head> <meta charset=\"UTF-8\"> <title>Linkstats</title></head><body>\n"
                 html = html + "<h2>Broken links</h2>\n<ul>\n"
                 $linksusedby.keys.sort.each { |l|
-                    unless $cachedlinks[l] == ''
+                    unless $cachedlinks[l].ok == true
+                        html = html + "<li><a href='" + l + "'>" + l + "</a>  (" + $cachedlinks[l].errorline + ") Used by:\n"
+                        $linksusedby[l].each { |t|
+                            html = html + "<a href='/latest" + t + "'>" + t + "</a>\n"
+                        }
+                        html = html + "</li>\n"
+                    end
+                }
+                html = html + "</ul>\n<h2>Working links with redirect</h2>\n<ul>\n"
+                $linksusedby.keys.sort.each { |l|
+                    if $cachedlinks[l].ok == true && $cachedlinks[l].statuscode > 299
                         html = html + "<li><a href='" + l + "'>" + l + "</a> Used by:\n"
                         $linksusedby[l].each { |t|
                             html = html + "<a href='/latest" + t + "'>" + t + "</a>\n"
@@ -1291,7 +1317,7 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
                 }
                 html = html + "</ul>\n<h2>Working links</h2>\n<ul>\n"
                 $linksusedby.keys.sort.each { |l|
-                    if $cachedlinks[l] == ''
+                    if $cachedlinks[l].ok == true && $cachedlinks[l].statuscode < 404
                         html = html + "<li><a href='" + l + "'>" + l + "</a> Used by:\n"
                         $linksusedby[l].each { |t|
                             html = html + "<a href='/latest" + t + "'>" + t + "</a>\n"
