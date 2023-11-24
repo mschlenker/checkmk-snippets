@@ -615,6 +615,10 @@ class SingleDocFile
                     $cachedlinks[href][:ok] = false
 					$cachedlinks[href][:errorline] = "Request timeout"
 					broken_links[href] = $cachedlinks[href][:errorline]
+                rescue Errno::EHOSTUNREACH
+                    $cachedlinks[href][:ok] = false
+					$cachedlinks[href][:errorline] = "No route to host"
+					broken_links[href] = $cachedlinks[href][:errorline]
 				end
 			end
 		}
@@ -677,6 +681,8 @@ class SingleDocFile
                 docstruc.push Node.new("imageblock", e['src'], e)
             elsif e.name == "span" && e['class'] == 'image-inline'
                 docstruc.push Node.new("imageinline", e['src'], e)
+            elsif e.name == "div" && e['class'] == 'paragraph'
+                docstruc.push Node.new("paragraph", nil, e)
             elsif e.name == "table"
                 rows = 0
 				e.xpath(".//tr").each  { |r|
@@ -1041,17 +1047,6 @@ class SingleDocFile
 			hdoc = Nokogiri::HTML.parse html
 			head  = hdoc.at_css "head"
 			cnode = hdoc.css("div[id='preamble']")[0]
-			# $stderr.puts cnode # .children[0] # .first_element_child
-			#@errors.each { |e|
-			#	# head.first_element_child.before("<!-- #{e} -->\n")
-			#	head.prepend_child "<!-- #{e} -->\n"
-			#	#cnode.children[1].before("<div id='adocerrors'>" + @errors.join("<br />") +  "</div>")
-			#}
-			#@xmlerrs.each { |e|
-			#	head.prepend_child "<!-- #{e} -->\n"
-			#	cnode.first_element_child.before("<div id='xmlerrors'>" + e.join("<br />") +  "</div>")
-			#}
-			# cnode.prepend_child("<div id='xmlerrors'>" + @xmlerrs.join("<br />") +  "</div>")
 			head.add_child("<style>\n" + File.read(__dir__ + "/docserve.css") + "\n</style>\n")
 			$injectcss.each { |c|
 				head.add_child("<style>\n" + File.read(c) + "\n</style>\n") if File.file? c
