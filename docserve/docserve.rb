@@ -66,6 +66,8 @@ $total_errors = Array.new
 $linklog = nil
 # Compare the structure of both languages
 $structure = 0
+# Build the SaaS User Guide
+$saas = 0
 
 # FIXME later: Currently we are limited to one branch
 $branches = "localdev"
@@ -128,6 +130,7 @@ def create_config
 	opts.on('--channel', :REQUIRED) { |i| $channel = i.to_s}
 	opts.on('--linklog', :REQUIRED) { |i| $linklog = i.to_s}
 	opts.on('--structure', :REQUIRED) { |i| $structure = i.to_i}
+    opts.on('--saas', :REQUIRED) { |i| $saas = i.to_i}
 	opts.parse!
 	# Try to find a config file
 	# 1. command line 
@@ -151,6 +154,8 @@ def create_config
 		$buildall = jcfg["build-all"] unless jcfg["build-all"].nil?
 		$prebuild = jcfg["pre-build"] unless jcfg["pre-build"].nil?
 		$since = jcfg["since"] unless jcfg["since"].nil?
+        $structure = jcfg["structure"] unless jcfg["structure"].nil?
+        $saas = jcfg["saas"] unless jcfg["saas"].nil?
 		$stderr.puts jcfg
 	end
 	[ $templates, $basepath, $cachedir ].each { |o|
@@ -260,6 +265,7 @@ end
 def prepare_menu
 	[ "de", "en" ].each { |lang|
 		path = "/#{lang}/menu.asciidoc"
+        path = "/#{lang}/menu_saas.asciidoc" if $saas > 0
 		s = SingleDocFile.new path
 		$cachedfiles[path.gsub('.asciidoc', '.html')] = s
 	}
@@ -428,7 +434,7 @@ class SingleDocFile
 	
 	# Check whether the page can be parsed as XML (HTML5 must be validating as XML)
 	def check_xml
-		return if @filename =~ /menu\.asciidoc$/
+		return if @filename =~ /menu\.asciidoc$/ || @filename =~ /menu_saas\.asciidoc$/
 		@xmlerrs = []
 		doc = nil
 		begin 
@@ -973,6 +979,10 @@ class SingleDocFile
 		#@mtime = check_includes
 		cached_mtime = 0
 		cached_exists = false
+        preproc = '-a onprem'
+        preproc = '-a saas' if $saas > 0
+        menu = 'menu.asciidoc'
+        menu = 'menu_saas.asciidoc' if $saas > 0
 		#if File.exist?(outfile) && @html.nil?
 		#	cached_mtime = File.mtime(outfile).to_i
 		#	$stderr.puts "Modification time of file on disk: #{cached_mtime}"
@@ -985,11 +995,11 @@ class SingleDocFile
 			$stderr.puts "Rebuilding file: " + @filename  
 			onthispage = $onthispage[@lang]
 			comm = ""
-			if @filename =~ /menu\.asciidoc$/
-				comm = "asciidoctor -T \"#{$templates}/templates/index\" -E slim \"#{$basepath}/#{@lang}/menu.asciidoc\" -D \"#{$cachedir}/#{$latest}/#{@lang}\""
+			if @filename =~ /menu\.asciidoc$/ || @filename =~ /menu_saas\.asciidoc$/
+				comm = "asciidoctor -T \"#{$templates}/templates/index\" -E slim \"#{$basepath}/#{@lang}/#{menu}\" -D \"#{$cachedir}/#{$latest}/#{@lang}\""
 				$stderr.puts comm
 			else
-				comm = "asciidoctor -a toc-title=\"#{onthispage}\" -a latest=#{$latest} -a branches=#{$branches} -a branch=#{$latest} -a lang=#{@lang} -a jsdir=../../assets/js -a download_link=https://checkmk.com/download -a linkcss=true -a stylesheet=checkmk.css -a stylesdir=../../assets/css -T \"#{$templates}/templates/slim\" -E slim -a toc=right \"#{$basepath}/#{@filename}\" -D \"#{outdir}\""
+				comm = "asciidoctor -a toc-title=\"#{onthispage}\" -a latest=#{$latest} -a branches=#{$branches} -a branch=#{$latest} -a lang=#{@lang} -a jsdir=../../assets/js -a download_link=https://checkmk.com/download -a linkcss=true -a stylesheet=checkmk.css -a stylesdir=../../assets/css #{preproc} -T \"#{$templates}/templates/slim\" -E slim -a toc=right \"#{$basepath}/#{@filename}\" -D \"#{outdir}\""
 				$stderr.puts comm
 			end
 			IO.popen(comm + " 2>&1") { |o|
@@ -1035,7 +1045,7 @@ class SingleDocFile
 		html = @html
 		@errorline = nil
 		@html_errorline = nil
-		unless @filename =~ /menu\.asciidoc$/
+		unless @filename =~ /menu\.asciidoc$/ || @filename =~ /menu_saas\.asciidoc$/
 			mystructure = nil
 			@structerrors = 0
 			struct_delta = nil
@@ -1136,7 +1146,9 @@ class SingleDocFile
 				end
 			end
 			mcont = hdoc.css("div[class='main-nav__content']")[0]
-			mcont.inner_html = $cachedfiles["/" + @lang + "/menu.html"].to_html unless mcont.nil?
+            xmenu = "/menu.html"
+            xmenu = "/menu_saas.html" if $saas > 0
+			mcont.inner_html = $cachedfiles["/" + @lang + xmenu].to_html unless mcont.nil?
 			body  = hdoc.at_css "body"
 			body.add_child("<script>\n" + 
 				File.read(__dir__ + "/autoreload.js").
