@@ -68,6 +68,7 @@ $linklog = nil
 $structure = 0
 # Build the SaaS User Guide
 $saas = 0
+$newdir = nil
 
 # FIXME later: Currently we are limited to one branch
 $branches = "localdev"
@@ -131,6 +132,7 @@ def create_config
 	opts.on('--linklog', :REQUIRED) { |i| $linklog = i.to_s}
 	opts.on('--structure', :REQUIRED) { |i| $structure = i.to_i}
     opts.on('--saas', :REQUIRED) { |i| $saas = i.to_i}
+    opts.on('--new-dir-structure', :REQUIRED) { |i| $newdir = i.to_i}
 	opts.parse!
 	# Try to find a config file
 	# 1. command line 
@@ -156,6 +158,7 @@ def create_config
 		$since = jcfg["since"] unless jcfg["since"].nil?
         $structure = jcfg["structure"] unless jcfg["structure"].nil?
         $saas = jcfg["saas"] unless jcfg["saas"].nil?
+        $saas = jcfg["newdir"] unless jcfg["newdir"].nil?
 		$stderr.puts jcfg
 	end
 	[ $templates, $basepath, $cachedir ].each { |o|
@@ -193,23 +196,66 @@ def post2slack(state, elines)
 	end
 end
 
+def identify_dir_structure
+    if File.directory? "#{$basepath}/src/onprem/en"
+        $newdir = 1
+    elsif File.directory? "#{$basepath}/en"
+        $newdir = 0
+    end
+end
+
+def create_softlinks
+    return if $newdir < 1
+    subdirs = [ "includes", "common", "onprem" ]
+    subdirs = [ "includes", "common", "saas" ] if $saas > 0
+    $onthispage.each { |lang, s| 
+        FileUtils.mkdir_p "#{$cachedir}/src/#{lang}"
+        subdirs.each { |d|
+            FileUtils.ln_s(Dir.glob("#{$basepath}/src/#{d}/#{lang}/*.a*doc"), "#{$cachedir}/src/#{lang}", force: true)
+            FileUtils.ln_s(Dir.glob("#{$basepath}/src/#{d}/#{lang}/*.xml"), "#{$cachedir}/src/#{lang}", force: true)
+            FileUtils.ln_s(Dir.glob("#{$basepath}/src/#{d}/#{lang}/*.txt"), "#{$cachedir}/src/#{lang}", force: true)
+        }
+        FileUtils.ln_s(Dir.glob("#{$basepath}/src/code/*.a*doc"), "#{$cachedir}/src/#{lang}", force: true)
+    }
+end
+
 # Create a list of all allowed files:
 def create_filelist
 	$allowed = []
+    if $newdir < 1
 	# Allow all asciidoc files except includes and menus
-	$onthispage.each { |lang, s| 
-		Dir.entries($basepath + "/" + lang).each { |f|
-			if f =~ /\.asciidoc/ 
-				fname = "/latest/" + lang + "/" + f.sub(/\.asciidoc$/, ".html")
-				jname = "/last_change/latest/" + lang + "/" + f.sub(/\.asciidoc$/, ".html")
-				unless f =~ /^(include|menu)/
-					$allowed.push fname
-					$allowed.push jname
-					$html.push fname
-				end
-			end
-		}
-	}
+        $onthispage.each { |lang, s| 
+            Dir.entries($basepath + "/" + lang).each { |f|
+                if f =~ /\.asciidoc/ 
+                    fname = "/latest/" + lang + "/" + f.sub(/\.asciidoc$/, ".html")
+                    jname = "/last_change/latest/" + lang + "/" + f.sub(/\.asciidoc$/, ".html")
+                    unless f =~ /^(include|menu)/
+                        $allowed.push fname
+                        $allowed.push jname
+                        $html.push fname
+                    end
+                end
+            }
+        }
+    else
+        subdirs = [ "common", "onprem" ]
+        subdirs = [ "common", "saas" ] if $saas > 0
+        $onthispage.each { |lang, s|
+            subdirs.each { |d|
+                Dir.entries($basepath + "/src/" + d + "/" + lang).each { |f|
+                    if f =~ /\.asciidoc/ 
+                        fname = "/latest/" + lang + "/" + f.sub(/\.asciidoc$/, ".html")
+                        jname = "/last_change/latest/" + lang + "/" + f.sub(/\.asciidoc$/, ".html")
+                        unless f =~ /^(include|menu)/
+                            $allowed.push fname
+                            $allowed.push jname
+                            $html.push fname
+                        end
+                    end
+                }
+            }
+        }
+    end
 	# Allow all images, but change their paths to include the language
 	Dir.entries($basepath + "/images").each { |f|
 		if f =~ /\.(png|jpeg|jpg|svg)$/
@@ -265,7 +311,6 @@ end
 def prepare_menu
 	[ "de", "en" ].each { |lang|
 		path = "/#{lang}/menu.asciidoc"
-        path = "/#{lang}/menu_saas.asciidoc" if $saas > 0
 		s = SingleDocFile.new path
 		$cachedfiles[path.gsub('.asciidoc', '.html')] = s
 	}
@@ -395,7 +440,12 @@ class SingleIncludeFile
 	attr_accessor :mtime
 	
 	def check_age
-		@mtime = File.mtime($basepath + @filename)
+        srcpath = $basepath
+        create_softlinks
+        if $newdir > 0
+            srcpath = "#{$cachedir}/src"
+        end
+		@mtime = File.mtime(srcpath + @filename)
 		return @mtime
 	end
 	
@@ -434,7 +484,7 @@ class SingleDocFile
 	
 	# Check whether the page can be parsed as XML (HTML5 must be validating as XML)
 	def check_xml
-		return if @filename =~ /menu\.asciidoc$/ || @filename =~ /menu_saas\.asciidoc$/
+		return if @filename =~ /menu\.asciidoc$/
 		@xmlerrs = []
 		doc = nil
 		begin 
@@ -739,12 +789,17 @@ class SingleDocFile
 		@includes = Array.new
 		@ignored = Array.new
         @nonascii = Array.new
-		@mtime = File.mtime($basepath + @filename)
-		File.open($basepath + @filename).each { |line|
+        srcpath = $basepath
+        create_softlinks
+        if $newdir > 0
+            srcpath = "#{$cachedir}/src"
+        end
+		@mtime = File.mtime(srcpath + @filename)
+		File.open(srcpath + @filename).each { |line|
 			if line =~ /include::(.*?)\[/
 				ifile = $1
 				ipath = "/" + @lang + "/" + ifile
-				if File.file?($basepath + ipath)
+				if File.exist?(srcpath + ipath)
 					$cachedincludes[ipath] = SingleIncludeFile.new ipath
 				else
 					$stderr.puts "Include file is missing: #{ipath}"
@@ -764,9 +819,14 @@ class SingleDocFile
 	
 	def check_includes
 		latest_include = Time.at 0
+        srcpath = $basepath
+        create_softlinks
+        if $newdir > 0
+            srcpath = "#{$cachedir}/src"
+        end
 		@missing_includes = Array.new
 		@includes.each { |i|
-			if File.file?($basepath + i) && $cachedincludes.has_key?(i)
+			if File.file?(srcpath + i) && $cachedincludes.has_key?(i)
 				mtime = $cachedincludes[i].check_age
 				latest_include = mtime if mtime > latest_include
 			else
@@ -776,9 +836,9 @@ class SingleDocFile
 		if @filename =~ /index\.asciidoc$/
 			# XML files mit column layout and featured topics are treated as includes as well
 			# TXT files with most recent updated etc. might be manually updated
-			Dir.entries($basepath + "/" + @lang).each { |f|
+			Dir.entries(srcpath + "/" + @lang).each { |f|
 				if f =~ /xml$/ || f =~ /txt$/
-					tmpmtime = File.mtime($basepath + "/" + @lang + "/" + f)
+					tmpmtime = File.mtime(srcpath + "/" + @lang + "/" + f)
 					latest_include = tmpmtime if tmpmtime > latest_include
 				end
 			}
@@ -788,7 +848,12 @@ class SingleDocFile
 	
 	def check_age
 		imtime = check_includes
-		fmtime = File.mtime($basepath + @filename)
+        srcpath = $basepath
+        create_softlinks
+        if $newdir > 0
+            srcpath = "#{$cachedir}/src"
+        end
+		fmtime = File.mtime(srcpath + @filename)
 		return imtime if imtime > fmtime
 		return fmtime
 	end
@@ -871,12 +936,17 @@ class SingleDocFile
 	end
 	
 	def nicify_startpage(hdoc) # expects HTML tree as Nokogiri object
+        srcpath = $basepath
+        create_softlinks
+        if $newdir > 0
+            srcpath = "#{$cachedir}/src"
+        end
 		begin
 			# Extract the featured topic overlay
-			featured = Nokogiri::HTML.parse(File.read($basepath + "/" + @lang + "/featured_000.xml"))
+			featured = Nokogiri::HTML.parse(File.read(srcpath + "/" + @lang + "/featured_000.xml"))
 			overlay = featured.css("div[id='topicopaque']")
 			# Extract the new startpage layout
-			landing = Nokogiri::HTML.parse(File.read($basepath + "/" + @lang + "/landingpage.xml"))
+			landing = Nokogiri::HTML.parse(File.read(srcpath + "/" + @lang + "/landingpage.xml"))
 			header = landing.css("div[id='header']")
 			# Extract the column for featured topic
 			ftcol = featured.css("div[id='featuredtopic']")[0]
@@ -936,8 +1006,13 @@ class SingleDocFile
 	# Convert the auto generated file list to HTML list
 	def get_autolist(name, hdoc)
 		h = nil
+        srcpath = $basepath
+        create_softlinks
+        if $newdir > 0
+            srcpath = "#{$cachedir}/src"
+        end
 		ul = Nokogiri::XML::Node.new "ul", hdoc
-		File.open($basepath + "/" + @lang + "/" + name + ".txt").each { |line|
+		File.open(srcpath + "/" + @lang + "/" + name + ".txt").each { |line|
 			if line =~ /^\#/ || line.strip == ""
 				# do nothing
 			elsif line =~ /^=\s/
@@ -945,7 +1020,7 @@ class SingleDocFile
 				h.content = line.strip.sub(/^=\s/, "")
 			else
 				fname = line.strip
-				File.open($basepath + "/" + @lang + "/" + fname + ".asciidoc").each { |aline|
+				File.open(srcpath + "/" + @lang + "/" + fname + ".asciidoc").each { |aline|
 					if aline =~ /^=\s/
 						li = Nokogiri::XML::Node.new "li", hdoc
 						a = Nokogiri::XML::Node.new "a", hdoc
@@ -982,7 +1057,6 @@ class SingleDocFile
         preproc = '-a onprem'
         preproc = '-a saas' if $saas > 0
         menu = 'menu.asciidoc'
-        menu = 'menu_saas.asciidoc' if $saas > 0
 		#if File.exist?(outfile) && @html.nil?
 		#	cached_mtime = File.mtime(outfile).to_i
 		#	$stderr.puts "Modification time of file on disk: #{cached_mtime}"
@@ -995,11 +1069,16 @@ class SingleDocFile
 			$stderr.puts "Rebuilding file: " + @filename  
 			onthispage = $onthispage[@lang]
 			comm = ""
-			if @filename =~ /menu\.asciidoc$/ || @filename =~ /menu_saas\.asciidoc$/
-				comm = "asciidoctor -T \"#{$templates}/templates/index\" -E slim \"#{$basepath}/#{@lang}/#{menu}\" -D \"#{$cachedir}/#{$latest}/#{@lang}\""
+            srcpath = $basepath
+            create_softlinks
+            if $newdir > 0
+                srcpath = "#{$cachedir}/src"
+            end
+			if @filename =~ /menu\.asciidoc$/
+				comm = "asciidoctor -T \"#{$templates}/templates/index\" -E slim \"#{srcpath}/#{@lang}/#{menu}\" -D \"#{$cachedir}/#{$latest}/#{@lang}\""
 				$stderr.puts comm
 			else
-				comm = "asciidoctor -a toc-title=\"#{onthispage}\" -a latest=#{$latest} -a branches=#{$branches} -a branch=#{$latest} -a lang=#{@lang} -a jsdir=../../assets/js -a download_link=https://checkmk.com/download -a linkcss=true -a stylesheet=checkmk.css -a stylesdir=../../assets/css #{preproc} -T \"#{$templates}/templates/slim\" -E slim -a toc=right \"#{$basepath}/#{@filename}\" -D \"#{outdir}\""
+				comm = "asciidoctor -a toc-title=\"#{onthispage}\" -a latest=#{$latest} -a branches=#{$branches} -a branch=#{$latest} -a lang=#{@lang} -a jsdir=../../assets/js -a download_link=https://checkmk.com/download -a linkcss=true -a stylesheet=checkmk.css -a stylesdir=../../assets/css #{preproc} -T \"#{$templates}/templates/slim\" -E slim -a toc=right \"#{srcpath}/#{@filename}\" -D \"#{outdir}\""
 				$stderr.puts comm
 			end
 			IO.popen(comm + " 2>&1") { |o|
@@ -1045,7 +1124,7 @@ class SingleDocFile
 		html = @html
 		@errorline = nil
 		@html_errorline = nil
-		unless @filename =~ /menu\.asciidoc$/ || @filename =~ /menu_saas\.asciidoc$/
+		unless @filename =~ /menu\.asciidoc$/
 			mystructure = nil
 			@structerrors = 0
 			struct_delta = nil
@@ -1147,7 +1226,6 @@ class SingleDocFile
 			end
 			mcont = hdoc.css("div[class='main-nav__content']")[0]
             xmenu = "/menu.html"
-            xmenu = "/menu_saas.html" if $saas > 0
 			mcont.inner_html = $cachedfiles["/" + @lang + xmenu].to_html unless mcont.nil?
 			body  = hdoc.at_css "body"
 			body.add_child("<script>\n" + 
@@ -1360,8 +1438,16 @@ class MyServlet < WEBrick::HTTPServlet::AbstractServlet
 		end
 	end
 end
-    
+
 create_config
+identify_dir_structure if $newdir.nil?
+if $newdir.nil?
+    puts "Could not identify directory structure!"
+    exit 1
+elsif $cachedir.nil?
+    puts "New directory structure needs a cachedir for building!"
+    exit 1
+end
 prepare_cache
 prepare_menu
 prepare_hunspell
