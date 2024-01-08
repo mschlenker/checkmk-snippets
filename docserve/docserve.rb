@@ -46,6 +46,16 @@ $since = nil
 # For posting to slack
 $slackauth = nil
 $channel = nil
+# Some files to log to
+$linklog = nil
+# Compare the structure of both languages
+$structure = 0
+# Build the SaaS User Guide
+$saas = 0
+$newdir = nil
+# Create a list of files to build at boot
+$prebuild = Array.new
+
 
 $lunr = Hash.new # Try to retrieve the lunr index from docs.dev or docs
 # Cache files here
@@ -57,18 +67,10 @@ $cachedlinks = Hash.new
 $linksusedby = Hash.new
 # Prepare dictionaries
 $dictionaries = Hash.new
-# Create a list of files to build at boot
-$prebuild = Array.new
 # For statistics
 $files_built = 0
 $total_errors = Array.new
-# Some files to log to
-$linklog = nil
-# Compare the structure of both languages
-$structure = 0
-# Build the SaaS User Guide
-$saas = 0
-$newdir = nil
+
 
 # FIXME later: Currently we are limited to one branch
 $branches = "localdev"

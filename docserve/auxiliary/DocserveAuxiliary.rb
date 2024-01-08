@@ -67,6 +67,7 @@ class DocserveAuxiliary
             "js/lunr.de.js", "js/lunr.client.js"
         ]
         cfg['baseurl'] = 'https://docs.checkmk.com/'
+        cfg['outdated'] = [ '1.6.0', '2.0.0' ]
 
         opts = OptionParser.new
         opts.on('-s', '--styling', :REQUIRED) { |i| cfg['templates'] = i }
@@ -133,9 +134,11 @@ class DocserveAuxiliary
         images = []
         index = {}
         buildfiles = {}
+        disallow = {}
         cfg['languages'].each { |lang| 
             buildfiles[lang] = []
             index[lang] = []
+            disallow[lang] = []
         }
         if cfg['newdir'] < 1
         # Allow all asciidoc files except includes and menus
@@ -149,9 +152,15 @@ class DocserveAuxiliary
                             all_allowed.push jname
                             html.push fname
                             buildfiles[lang].push f
-                            unless f =~ /^draft/
-                                index[lang].push f if DocserveAuxiliary.decide_index(cfg['basepath'] + "/" + lang + "/" + f, idx) == true
+                            if f =~ /^draft/
+                                disallow[lang].push f
+                            elsif DocserveAuxiliary.decide_index(cfg['basepath'] + "/" + lang + "/" + f, idx) == true
+                                index[lang].push f
+                            else
+                                disallow[lang].push f
                             end
+                        else
+                            disallow[lang].push f
                         end
                     end
                 }
@@ -170,8 +179,12 @@ class DocserveAuxiliary
                                 all_allowed.push jname
                                 html.push fname
                                 buildfiles[lang].push f
-                                unless f =~ /^draft/
-                                    index[lang].push f if DocserveAuxiliary.decide_index(cfg['basepath'] + "/" + lang + "/" + f, idx) == true
+                                if f =~ /^draft/
+                                    disallow[lang].push f
+                                elsif DocserveAuxiliary.decide_index(cfg['basepath'] + "/" + lang + "/" + f, idx) == true
+                                    index[lang].push f 
+                                else
+                                    disallow[lang].push f
                                 end
                             end
                         end
@@ -223,7 +236,8 @@ class DocserveAuxiliary
             'html' => html,
             'images' => images,
             'buildfiles' => buildfiles,
-            'index' => index
+            'index' => index,
+            'disallow' => disallow
         }
     end
     
@@ -459,22 +473,33 @@ class DocserveAuxiliary
     def DocserveAuxiliary.generate_sitemap(cfg, branch, files)
         # Only build the sitemap for the default branch
         return unless cfg['default'] == branch
+        skipfiles = []
+        if File.exist?(cfg['basepath'] + "/exclude_from_search.txt")
+            File.open(cfg['basepath'] + "/exclude_from_search.txt").each { |line|
+                cfg['languages'].each { |l|
+                    skipfiles.push(l + "/" + line.strip + ".asciidoc") unless line.strip =~ /^\#/
+                }
+            }
+        end
         moddates = {}
         pwd = Dir.pwd
         Dir.chdir cfg['basepath']
         cfg['languages'].each { |lang|
             moddates[lang] = {}
             files['index'][lang].each { |f|
-                lastmod = ` /usr/bin/git log -1 --pretty="format:%ci"  "#{lang}/#{f}" ` 
-				if lastmod == "" 
-					lastmod = Time.new.strftime("%Y-%m-%d")
-				end
-                puts lastmod
-                moddates[lang][f] = lastmod
+                unless skipfiles.include? f
+                    lastmod = ` /usr/bin/git log -1 --pretty="format:%ci"  "#{lang}/#{f}" ` 
+                    if lastmod == "" 
+                        lastmod = Time.new.strftime("%Y-%m-%d")
+                    end
+                    puts lastmod
+                    moddates[lang][f] = lastmod
+                end
             }
         }
         Dir.chdir pwd
         DocserveAuxiliary.dump_sitemap(cfg, moddates)
+        DocserveAuxiliary.dump_robots(cfg, files, skipfiles)
     end
     
     def DocserveAuxiliary.dump_sitemap(cfg, entries)
@@ -489,11 +514,11 @@ class DocserveAuxiliary
             "http://www.w3.org/1999/xhtml\">\n"
         cfg['languages'].each { |lang|
             entries[lang].each { |f,t|
-                link = cfg['baseurl'] + "latest/" + lang + "/" +f.gsub(".asciidoc", ".html")
+                link = cfg['baseurl'] + "latest/" + lang + "/" + f.gsub(".asciidoc", ".html")
                 outfile.write "<url>\n<loc>" + link + "</loc>\n"
                 cfg['languages'].each { |l|
                     if entries[l].has_key? f
-                        link = cfg['baseurl'] + "latest/" + l + "/" +f.gsub(".asciidoc", ".html")
+                        link = cfg['baseurl'] + "latest/" + l + "/" + f.gsub(".asciidoc", ".html")
                         outfile.write "<xhtml:link href=\"" + link +"\" hreflang=\"#{l}\" rel=\"alternate\"/>\n"
                     end
                 }
@@ -505,5 +530,29 @@ class DocserveAuxiliary
         outfile.close
     end
     
+    def DocserveAuxiliary.dump_robots(cfg, files, skipfiles)
+        outfile = File.new("#{cfg['outdir']}/robots.txt", 'w')
+        outfile.write "User-agent: *\nAllow: /\nDisallow: /master/\n"
+        lines = []
+        cfg['outdated'].each { |o|
+            lines.push "Disallow: /#{o}/\n"
+        }
+        lines.push "# Files listed in exclude_from_search.txt are disallowed:\n"
+        skipfiles.each { |f|
+            f = f.gsub(".asciidoc", ".html")
+            lines.push "Disallow: /latest/#{f}\n"
+        }
+        lines.push "# Files with stub content triggering disallow:\n"
+        cfg['languages'].each { |l|
+            files['disallow'][l].each { |f|
+                f = f.gsub(".asciidoc", ".html")
+                lines.push "Disallow: /latest/#{l}/#{f}\n"
+            }
+        }
+        lines.uniq.each { |l| outfile.write l }
+        outfile.write "# Sitemap:\n"
+        outfile.write "Sitemap: #{cfg['baseurl']}/sitemap.xml\n"
+        outfile.close
+    end
     
 end
