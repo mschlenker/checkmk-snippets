@@ -55,12 +55,17 @@ class DocserveAuxiliary
         cfg['default'] = nil
         # Map virtual branches to nonexisting branches:
         cfg['fake_branches'] = {}
+        # Use cached supported builds?
+        cfg['cached_supported'] = 1
         # This should be moved to another object:
         cfg['toctitle'] = {
             "en" => "On this page",
             "de" => "Auf dieser Seite"
         }
-        cfg['usedcss'] = [  "css/checkmk.css", "css/pygments-monokai.css" ] 
+        cfg['usedcss'] = [  
+            "css/checkmk.css", "css/pygments-monokai.css",
+            "css/addons.css", "css/SourceCodePro.css"
+        ] 
         cfg['usedjs'] = [
             "js/manifest.js", "js/vendor.js", "js/app.js",
             "js/lunr.js", "js/lunr.stemmer.support.js",
@@ -68,6 +73,7 @@ class DocserveAuxiliary
         ]
         cfg['baseurl'] = 'https://docs.checkmk.com/'
         cfg['outdated'] = [ '1.6.0', '2.0.0' ]
+        cfg['update_matrix'] = [ '1.5.0', '1.6.0', '2.0.0', '2.1.0', '2.2.0' ]
 
         opts = OptionParser.new
         opts.on('-s', '--styling', :REQUIRED) { |i| cfg['templates'] = i }
@@ -89,6 +95,7 @@ class DocserveAuxiliary
         opts.on('--linklog', :REQUIRED) { |i| cfg['linklog'] = i.to_s}
         opts.on('--structure', :REQUIRED) { |i| cfg['structure'] = i.to_i}
         opts.on('--saas', :REQUIRED) { |i| cfg['saas'] = i.to_i}
+        opts.on('--cached-supported', :REQUIRED) { |i| cfg['cached_supported'] = i.to_i}
         opts.on('--languages', :REQUIRED) { |i| cfg['languages'] = i.split(",")}
         opts.on('--outdir', :REQUIRED) { |i| cfg['outdir'] = i.to_s}
         opts.on('--branches', :REQUIRED) { |i| cfg['branches'] = i.split(",")}
@@ -377,26 +384,31 @@ class DocserveAuxiliary
     end
     
     def DocserveAuxiliary.copy_assets(cfg)
-        FileUtils.mkdir_p "#{cfg['outdir']}/assets/js"
-        FileUtils.mkdir_p "#{cfg['outdir']}/assets/css"
+        dirs = [ "assets/css", "assets/js",  ".well-known", 'assets/fonts', 'assets/images'  ]
+        cfg['languages'].each { |lang| dirs.push lang }
+        dirs.each { |d|
+            FileUtils.mkdir_p "#{cfg['outdir']}/#{d}"
+        }
+        comms = []
         [ 'fonts/', 'images/' ].each { |d|
-            comm = "rsync -avHP --inplace \"#{cfg['templates']}/assets/#{d}/\" \"#{cfg['outdir']}/assets/#{d}/\""
-            system comm
+            comms.push "rsync -avHP --inplace \"#{cfg['templates']}/assets/#{d}/\" \"#{cfg['outdir']}/assets/#{d}/\""
         }
         cfg['usedcss'].each { |f|
-            comm = "rsync -avHP --inplace \"#{cfg['templates']}/assets/#{f}\" \"#{cfg['outdir']}/assets/css/\""
-            system comm
+            comms.push  "rsync -avHP --inplace \"#{cfg['templates']}/assets/#{f}\" \"#{cfg['outdir']}/assets/css/\""
         }
         cfg['usedjs'].each { |f|
-            comm = "rsync -avHP --inplace \"#{cfg['templates']}/assets/#{f}\" \"#{cfg['outdir']}/assets/js/\""
-            system comm
+            comms.push  "rsync -avHP --inplace \"#{cfg['templates']}/assets/#{f}\" \"#{cfg['outdir']}/assets/js/\""
         }
-	[ "assets/images/favicon.png", "main-sitemap.xsl" ].each { |f|
-	    comm = "rsync -avHP --inplace \"#{cfg['templates']}/#{f}\" \"#{cfg['outdir']}/\""
-	    system comm
-	}
-	comm = "rsync -avHP --inplace \"#{cfg['templates']}/static/traffic-advice.json \"#{cfg['outdir']}/.well-known/traffic-advice\""
-	system comm
+        [ "assets/images/favicon.png", "main-sitemap.xsl" ].each { |f|
+            comms.push "rsync -avHP --inplace \"#{cfg['templates']}/#{f}\" \"#{cfg['outdir']}/\""
+        }
+        comms.push  "rsync -avHP --inplace \"#{cfg['cachedir']}/supported_builds_clean.json\" \"#{cfg['outdir']}/assets/js/\""
+        comms.push  "rsync -avHP --inplace \"#{cfg['templates']}/static/traffic-advice.json\" \"#{cfg['outdir']}/.well-known/traffic-advice\""
+        cfg['languages'].each { |lang|
+            comms.push "rsync -avHP --inplace \"#{cfg['templates']}//opensearch/opensearch_#{lang}.xml\" \"#{cfg['outdir']}/#{lang}/opensearch.xml\""
+        }
+        DocserveAuxiliary.retrieve_supported(cfg)
+        comms.each { |c| system c }
     end
     
     def DocserveAuxiliary.nicify_startpage(cfg, branch='master', lang='en', hdoc=nil)
@@ -408,7 +420,7 @@ class DocserveAuxiliary
             outdir = "#{cfg['outdir']}/#{branch}"
             outdir = "#{cfg['outdir']}/latest" if cfg['default'] == branch
             html = File.read("#{outdir}/#{lang}/index.html")
-            hdoc = hdoc = Nokogiri::HTML.parse html
+            hdoc = Nokogiri::HTML.parse html
         end
         begin
             # Extract the featured topic overlay
@@ -427,7 +439,11 @@ class DocserveAuxiliary
         end
         hdoc.search(".//main[@class='home']//div[@id='header']").remove
         hdoc.search(".//main[@class='home']//div[@id='content']").remove
-        main = hdoc.css("main[class='home']")[0]
+        hdoc.search(".//body[@class='article']//div[@id='header']").remove
+        hdoc.search(".//body[@class='article']//div[@id='content']").remove
+        main = hdoc.css("main[@class='home']")[0]
+        main = hdoc.css("body[@class='article']")[0] if main.nil?
+        # puts main
         main.add_child overlay
         main.add_child header
         # Identify the container in the target 
@@ -446,6 +462,14 @@ class DocserveAuxiliary
             outf.close
         end
         return hdoc
+    end
+    
+    def DocserveAuxiliary.nicify_startpage_lunr(cfg, branch='master', lang='en')
+        hdoc = Nokogiri::HTML.parse(File.read("#{cfg['cachedir']}/lunr/#{branch}/#{lang}/index.html"))
+        hdoc = DocserveAuxiliary.nicify_startpage(cfg, branch, lang, hdoc)
+        out = File.new("#{cfg['cachedir']}/lunr/#{branch}/#{lang}/index.html", "w")
+        out.write hdoc
+        out.close
     end
     
     def DocserveAuxiliary.get_autolist(cfg, name, hdoc, lang)
@@ -556,6 +580,23 @@ class DocserveAuxiliary
         lines.uniq.each { |l| outfile.write l }
         outfile.write "# Sitemap:\n"
         outfile.write "Sitemap: #{cfg['baseurl']}/sitemap.xml\n"
+        outfile.close
+    end
+    
+    def DocserveAuxiliary.retrieve_supported(cfg)
+        if cfg['cached_supported'] > 0 && File.exist?("#{cfg['cachedir']}/supported_builds_clean.json")
+            return
+        end
+        url = URI("https://download.checkmk.com/supported_builds.json")
+        resp = Net::HTTP.get_response(url)
+        h = JSON.parse resp.body
+        cleaned = {}
+        cleaned["cre"] = {}
+        cfg['update_matrix'].each { |r|
+            cleaned["cre"][r] = h["cre"][r]
+        }
+        outfile = File.new("#{cfg['cachedir']}/supported_builds_clean.json", 'w')
+        outfile.write(cleaned.to_json)
         outfile.close
     end
     
