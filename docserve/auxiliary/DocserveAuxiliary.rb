@@ -391,8 +391,12 @@ class DocserveAuxiliary
             comm = "rsync -avHP --inplace \"#{cfg['templates']}/assets/#{f}\" \"#{cfg['outdir']}/assets/js/\""
             system comm
         }
-        comm = "rsync -avHP --inplace \"#{cfg['templates']}//main-sitemap.xsl\" \"#{cfg['outdir']}/\""
-        system comm
+	[ "assets/images/favicon.png", "main-sitemap.xsl" ].each { |f|
+	    comm = "rsync -avHP --inplace \"#{cfg['templates']}/#{f}\" \"#{cfg['outdir']}/\""
+	    system comm
+	}
+	comm = "rsync -avHP --inplace \"#{cfg['templates']}/static/traffic-advice.json \"#{cfg['outdir']}/.well-known/traffic-advice\""
+	system comm
     end
     
     def DocserveAuxiliary.nicify_startpage(cfg, branch='master', lang='en', hdoc=nil)
