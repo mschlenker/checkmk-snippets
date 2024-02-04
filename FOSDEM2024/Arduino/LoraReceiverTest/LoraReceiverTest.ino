@@ -15,7 +15,7 @@ void setup() {
   while (!Serial);
   LoRa.setPins(20, -1);
   LoRa.enableCrc();
-  Serial.println("LoRa Receiver");
+  // Serial.println("LoRa Receiver");
 
   if (!LoRa.begin(868E6)) {
     Serial.println("Starting LoRa failed!");
@@ -32,7 +32,7 @@ void loop() {
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
     // received a packet
-    Serial.print("Received packet '");
+    // Serial.print("Received packet '");
 
     // read packet
     while (LoRa.available()) {
@@ -40,7 +40,7 @@ void loop() {
     }
 
     // print RSSI of packet
-    Serial.print("' with RSSI ");
-    Serial.println(LoRa.packetRssi());
+    // Serial.print("' with RSSI ");
+    // Serial.println(LoRa.packetRssi());
   }
 }
