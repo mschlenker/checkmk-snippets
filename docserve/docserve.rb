@@ -213,11 +213,20 @@ def create_softlinks
     $onthispage.each { |lang, s| 
         FileUtils.mkdir_p "#{$cachedir}/src/#{lang}"
         subdirs.each { |d|
-            FileUtils.ln_s(Dir.glob("#{$basepath}/src/#{d}/#{lang}/*.a*doc"), "#{$cachedir}/src/#{lang}", force: true)
-            FileUtils.ln_s(Dir.glob("#{$basepath}/src/#{d}/#{lang}/*.xml"), "#{$cachedir}/src/#{lang}", force: true)
-            FileUtils.ln_s(Dir.glob("#{$basepath}/src/#{d}/#{lang}/*.txt"), "#{$cachedir}/src/#{lang}", force: true)
+            begin
+                FileUtils.ln_s(Dir.glob("#{$basepath}/src/#{d}/#{lang}/*.a*doc"), "#{$cachedir}/src/#{lang}/", force: true)
+            rescue
+            end
+            begin
+                FileUtils.ln_s(Dir.glob("#{$basepath}/src/#{d}/#{lang}/*.xml"), "#{$cachedir}/src/#{lang}/", force: true)
+            rescue
+            end 
+            begin
+                FileUtils.ln_s(Dir.glob("#{$basepath}/src/#{d}/#{lang}/*.txt"), "#{$cachedir}/src/#{lang}/", force: true)
+            rescue
+            end
         }
-        FileUtils.ln_s(Dir.glob("#{$basepath}/src/code/*.a*doc"), "#{$cachedir}/src/#{lang}", force: true)
+        FileUtils.ln_s(Dir.glob("#{$basepath}/src/code/*.a*doc"), "#{$cachedir}/src/#{lang}/", force: true)
     }
 end
 
