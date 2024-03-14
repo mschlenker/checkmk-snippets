@@ -28,8 +28,8 @@ NAMESERVER=8.8.8.8 # Might or might not be overwritten later by DHCP.
 HOSTNAME="throwawaybian"
 EXTRADEBS=""
 ADDUSER="" # "karlheinz" If non-empty a user will be added. This means interaction!
-ROOTPASS=1 # Set to 1 to prompt for a root password. This means interaction!
-PKGCACHE="" # Set to nonzero length directory name to enable caching of debs
+ROOTPASS=0 # Set to 1 to prompt for a root password. This means interaction!
+PKGCACHE="" # /data/VM/debcache" # Set to nonzero length directory name to enable caching of debs
 UBUSERVER="http://archive.ubuntu.com/ubuntu" # You might change to local mirror, but
 DEBSERVER="http://deb.debian.org/debian"     # this is less relevant when using caching!
 DEVSERVER="http://deb.devuan.org/merged"
@@ -45,8 +45,8 @@ EXTRAS="" # add additional CLI parameters
 # and port 2222 to 22 on the Ubuntu. This is often sufficient for development:
 NET="-net nic,model=e1000 -net user,hostfwd=tcp::8000-:80,hostfwd=tcp::2222-:22"
 # This uses a real tun/tap bridge, use for stationary machines that should be
-# exposed, if using Mattias' bridge script you have tap0 to tap9 available:
-# NET="-device virtio-net-pci,netdev=network3,mac=00:16:17:12:23:11 -netdev tap,id=network3,ifname=tap3,script=no,downscript=no"
+# exposed, if using Mattias' bridge script you have vmtap0 to vmtap9 available:
+# NET="-device virtio-net-pci,netdev=network3,mac=00:16:17:12:23:11 -netdev tap,id=network3,ifname=vmtap3,script=no,downscript=no"
 
 # network3 in both parameters is just an identifier to make qemu know, both 
 # parameters belong together. 
@@ -292,7 +292,8 @@ EOF
 	chroot "${TARGETDIR}/.target" apt-get -y install ca-certificates
 	chroot "${TARGETDIR}/.target" apt-get -y update
 	chroot "${TARGETDIR}/.target" apt-get -y install screen linux-image-generic openssh-server \
-		rsync btrfs-progs openntpd ifupdown net-tools locales grub-pc os-prober grub-gfxpayload-lists
+		rsync btrfs-progs openntpd ifupdown net-tools locales grub-pc os-prober
+    chroot "${TARGETDIR}/.target" apt-get -y install grub-gfxpayload-lists
 	chroot "${TARGETDIR}/.target" apt-get -y dist-upgrade
 	extlinux -i "${TARGETDIR}/.target/boot"
 	if [ -z "$UBUEDITION" ] ; then
