@@ -19,16 +19,16 @@ DEVEDITION="daedalus" # daedalus 5.0 = 12.x, Devuan is Debian without systemd
 # http://deb.devuan.org/devuan/pool/main/d/debootstrap/
 SYSSIZE=32 # Size of the system partition GB
 SWAPSIZE=3 # Size of swap GB
-BOOTSIZE=3 # Keep a small boot partition, 3GB is sufficient for kernel, initrd and modules (twice)
+# BOOTSIZE=3 # Keep a small boot partition, 3GB is sufficient for kernel, initrd and modules (twice)
 TMPSIZE=512 # MB Create a small tmpfs on /tmp, this only affects /etc/fstab, 0 to disable
 ARCH=amd64
 ROOTFS=btrfs # You might choose ext4 or zfs (haven't tried), btrfs uses snapshots
 SSHKEYS="/home/${SUDO_USER}/.ssh/id_ecdsa.pub /home/${SUDO_USER}/.ssh/id_ed25519.pub"
 NAMESERVER=8.8.8.8 # Might or might not be overwritten later by DHCP.
 HOSTNAME="throwawaybian"
-EXTRADEBS="apache2"
+EXTRADEBS=""
 ADDUSER="" # "karlheinz" If non-empty a user will be added. This means interaction!
-ROOTPASS=0 # Set to 1 to prompt for a root password. This means interaction!
+ROOTPASS=1 # Set to 1 to prompt for a root password. This means interaction!
 PKGCACHE="" # Set to nonzero length directory name to enable caching of debs
 UBUSERVER="http://archive.ubuntu.com/ubuntu" # You might change to local mirror, but
 DEBSERVER="http://deb.debian.org/debian"     # this is less relevant when using caching!
@@ -110,12 +110,12 @@ if [ -n "$PKGCACHE" ]; then
 	fi
 fi
 
-DISKSIZE=$(( $SYSSIZE + $SWAPSIZE + $BOOTSIZE ))
+DISKSIZE=$(( $SYSSIZE + $SWAPSIZE ))
 freeloop=""
 
 # If a file .bootstrap.success is present, assume installation was OK.
 # In this case do not check for tools:
-neededtools="extlinux parted dmsetup kpartx debootstrap mkfs.btrfs qemu-system-x86_64 tunctl"
+neededtools="parted dmsetup kpartx debootstrap mkfs.btrfs qemu-system-x86_64"
 if [ -f "${TARGETDIR}/.bootstrap.success" ] ; then
 	echo "Found ${TARGETDIR}/.bootstrap.success, skipping checks"
 else
@@ -161,9 +161,9 @@ else
 	losetup $freeloop "${TARGETDIR}/disk.img"
 	# Partition the disk
 	parted -s $freeloop mklabel msdos
-	parted -s $freeloop unit B mkpart primary ext4  $(( 1024 ** 2 )) $(( 1024 ** 3 * $BOOTSIZE - 1 ))
-	parted -s $freeloop unit B mkpart primary ext4  $(( 1024 ** 3 * $BOOTSIZE )) $(( 1024 ** 3 * ( $BOOTSIZE + SWAPSIZE ) - 1 ))
-	parted -s $freeloop unit B mkpart primary ext4  $(( 1024 ** 3 * ( $BOOTSIZE + SWAPSIZE ) )) 100%
+	parted -s $freeloop unit B mkpart primary ext4  $(( 1024 ** 2 )) $(( 1024 ** 3 * $SYSSIZE - 1 ))
+	# parted -s $freeloop unit B mkpart primary ext4  $(( 1024 ** 3 * $BOOTSIZE )) $(( 1024 ** 3 * ( $BOOTSIZE + $SWAPSIZE ) - 1 ))
+	parted -s $freeloop unit B mkpart primary ext4  $(( 1024 ** 3 * $SYSSIZE )) 100%
 	parted -s $freeloop unit B set 1 boot on
 	parted -s $freeloop unit B print
 fi
@@ -181,27 +181,28 @@ else
 	sleep 5
 	kpartx -a $freeloop
 	mkdir -p "${TARGETDIR}/.target"
-	mkfs.ext4 /dev/mapper/${freeloop#/dev/}p1
-	mkfs.${ROOTFS} /dev/mapper/${freeloop#/dev/}p3
+	# mkfs.ext4 /dev/mapper/${freeloop#/dev/}p1
+	mkfs.${ROOTFS} /dev/mapper/${freeloop#/dev/}p1
 	# When using btrfs create a subvolume _install and use as default to make versioning easier
 	MOUNTOPTS="defaults"
 	case ${ROOTFS} in 
 		btrfs)
-			mount -o rw /dev/mapper/${freeloop#/dev/}p3 "${TARGETDIR}/.target"
+			mount -o rw /dev/mapper/${freeloop#/dev/}p1 "${TARGETDIR}/.target"
 			btrfs subvolume create "${TARGETDIR}/.target/_install"
-			umount /dev/mapper/${freeloop#/dev/}p3
+            btrfs subvolume set-default "${TARGETDIR}/.target/_install"
+			umount /dev/mapper/${freeloop#/dev/}p1
 			MOUNTOPTS='subvol=_install'
 		;;
 	esac
 	mkswap /dev/mapper/${freeloop#/dev/}p2
-	mount -o rw,"${MOUNTOPTS}" /dev/mapper/${freeloop#/dev/}p3 "${TARGETDIR}/.target"
+	mount -o rw,"${MOUNTOPTS}" /dev/mapper/${freeloop#/dev/}p1 "${TARGETDIR}/.target"
 	mkdir -p "${TARGETDIR}/.target/boot"
-	mount -o rw /dev/mapper/${freeloop#/dev/}p1 "${TARGETDIR}/.target/boot"
-	mkdir -p "${TARGETDIR}/.target/boot/modules"
-	mkdir -p "${TARGETDIR}/.target/boot/firmware"
-	mkdir -p "${TARGETDIR}/.target/lib"
-	ln -s /boot/modules "${TARGETDIR}/.target/lib/modules"
-	ln -s /boot/firmware "${TARGETDIR}/.target/lib/firmware"
+	# mount -o rw /dev/mapper/${freeloop#/dev/}p1 "${TARGETDIR}/.target/boot"
+	# mkdir -p "${TARGETDIR}/.target/boot/modules"
+	# mkdir -p "${TARGETDIR}/.target/boot/firmware"
+	# mkdir -p "${TARGETDIR}/.target/lib"
+	# ln -s /boot/modules "${TARGETDIR}/.target/lib/modules"
+	# ln -s /boot/firmware "${TARGETDIR}/.target/lib/firmware"
 	# This is the installation!
 	archivedir=""
 	if [ -n "$PKGCACHE" ]; then
@@ -291,7 +292,7 @@ EOF
 	chroot "${TARGETDIR}/.target" apt-get -y install ca-certificates
 	chroot "${TARGETDIR}/.target" apt-get -y update
 	chroot "${TARGETDIR}/.target" apt-get -y install screen linux-image-generic openssh-server \
-		rsync btrfs-progs openntpd ifupdown net-tools syslinux-common extlinux locales
+		rsync btrfs-progs openntpd ifupdown net-tools locales grub-pc os-prober grub-gfxpayload-lists
 	chroot "${TARGETDIR}/.target" apt-get -y dist-upgrade
 	extlinux -i "${TARGETDIR}/.target/boot"
 	if [ -z "$UBUEDITION" ] ; then
@@ -304,6 +305,9 @@ EOF
 	for d in $EXTRADEBS ; do
 		chroot "${TARGETDIR}/.target" apt-get -y install $d
 	done
+    echo 'GRUB_CMDLINE_LINUX_DEFAULT="net.ifnames=0"' >> "${TARGETDIR}/.target/etc/default/grub"
+    chroot "${TARGETDIR}/.target" update-grub
+    chroot "${TARGETDIR}/.target" grub-install --recheck --target=i386-pc --boot-directory=/boot $freeloop
 	rm "${TARGETDIR}/.target"/etc/resolv.conf
 	echo "nameserver $NAMESERVER" > "${TARGETDIR}/.target"/etc/resolv.conf
 	echo "$HOSTNAME" > "${TARGETDIR}/.target"/etc/hostname
@@ -312,16 +316,15 @@ EOF
 	for key in $SSHKEYS ; do
 		[ -f "$key" ] && cat "$key" >> "${TARGETDIR}/.target/root/.ssh/authorized_keys"
 	done
-	eval ` blkid -o udev /dev/mapper/${freeloop#/dev/}p1 `
-	UUID_BOOT=$ID_FS_UUID
+	#eval ` blkid -o udev /dev/mapper/${freeloop#/dev/}p1 `
+	#UUID_BOOT=$ID_FS_UUID
 	eval ` blkid -o udev /dev/mapper/${freeloop#/dev/}p2 `
 	UUID_SWAP=$ID_FS_UUID
-	eval ` blkid -o udev /dev/mapper/${freeloop#/dev/}p3 `
+	eval ` blkid -o udev /dev/mapper/${freeloop#/dev/}p1 `
 	UUID_ROOT=$ID_FS_UUID
 cat > "${TARGETDIR}/.target"/etc/fstab << EOF
 # <file system> <mount point>   <type>  <options>       <dump>  <pass>
 UUID=${UUID_ROOT} /               ${ROOTFS}   ${MOUNTOPTS} 0       1
-UUID=${UUID_BOOT} /boot           ext4        defaults 0       0
 UUID=${UUID_SWAP} none            swap        sw       0       0
 
 EOF
@@ -344,19 +347,19 @@ iface eth0 inet dhcp
 
 EOF
 
-	dd if="${TARGETDIR}/.target"/usr/lib/EXTLINUX/mbr.bin of=${freeloop} count=1 bs=448 # max size of an MBR
+# dd if="${TARGETDIR}/.target"/usr/lib/EXTLINUX/mbr.bin of=${freeloop} count=1 bs=448 # max size of an MBR
 	
-cat > "${TARGETDIR}/.target"/boot/extlinux.conf << EOF
+#cat > "${TARGETDIR}/.target"/boot/extlinux.conf << EOF
 # No frills bootloader config for extlinux/syslinux
-DEFAULT ubuntu
-TIMEOUT 50
-PROMPT 1
-
-LABEL ubuntu
-	KERNEL /vmlinuz 
-	APPEND initrd=/initrd.img root=/dev/vda3 ro nosplash rootflags=${MOUNTOPTS} net.ifnames=0 biosdevname=0
-
-EOF
+#DEFAULT ubuntu
+#TIMEOUT 50
+#PROMPT 1
+#
+#LABEL ubuntu
+#	KERNEL /vmlinuz 
+# APPEND initrd=/initrd.img root=/dev/vda3 ro nosplash rootflags=${MOUNTOPTS} net.ifnames=0 biosdevname=0
+#
+#EOF
 
 	# Tunneled devices are not seen from the outside until at least one outgoing
 	# packet has occured, so just ping the nameservers to make sure, hosts
@@ -381,7 +384,7 @@ EOF
 	fi
 	for d in dev/pts dev sys proc boot var/cache/apt/archives ; do umount -f "${TARGETDIR}/.target"/$d ; done 
 	umount "${TARGETDIR}/.target"
-	dmsetup remove /dev/mapper/${freeloop#/dev/}p3
+	# dmsetup remove /dev/mapper/${freeloop#/dev/}p3
 	dmsetup remove /dev/mapper/${freeloop#/dev/}p2
 	dmsetup remove /dev/mapper/${freeloop#/dev/}p1
 	losetup -d $freeloop && touch "${TARGETDIR}/.bootstrap.success"
