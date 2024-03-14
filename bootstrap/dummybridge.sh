@@ -33,7 +33,7 @@ if [ -z "$TAPUSER" ] ; then
 fi
 if [ -z "$PHYIFACES" ] ; then
     PHYIFACES="` ip link ls | grep -v '^\s' | awk -F ': ' '{print $2}' | grep -e 'wl[opx]' `"
-    PHYIFACES="${PHYIFACES}` ip link ls | grep -v '^\s' | awk -F ': ' '{print $2}' | grep -e 'en[opx]' `"
+    PHYIFACES="${PHYIFACES} ` ip link ls | grep -v '^\s' | awk -F ': ' '{print $2}' | grep -e 'en[opx]' `"
 fi
 # Exit if configuration is invalid
 if [ -z "$TAPUSER" ] ; then
