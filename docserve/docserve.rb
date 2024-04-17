@@ -809,7 +809,12 @@ class SingleDocFile
         if $newdir > 0
             srcpath = "#{$cachedir}/src"
         end
-		@mtime = File.mtime(srcpath + @filename)
+        begin
+            @mtime = File.mtime(srcpath + @filename)
+        rescue
+            create_softlinks
+            @mtime = File.mtime(srcpath + @filename)
+        end
 		File.open(srcpath + @filename).each { |line|
 			if line =~ /include::(.*?)\[/
 				ifile = $1
