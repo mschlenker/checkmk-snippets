@@ -30,6 +30,7 @@ EXTRADEBS=""
 ADDUSER="" # "karlheinz" If non-empty a user will be added. This means interaction!
 ROOTPASS=0 # Set to 1 to prompt for a root password. This means interaction!
 PKGCACHE="" # /data/VM/debcache" # Set to nonzero length directory name to enable caching of debs
+LINUXIMAGE="" # Set for example to linux-image-virtual on Ubuntu to install a leaner kernel
 UBUSERVER="http://archive.ubuntu.com/ubuntu" # You might change to local mirror, but
 DEBSERVER="http://deb.debian.org/debian"     # this is less relevant when using caching!
 DEVSERVER="http://deb.devuan.org/merged"
@@ -291,7 +292,8 @@ EOF
 	
 	chroot "${TARGETDIR}/.target" apt-get -y install ca-certificates
 	chroot "${TARGETDIR}/.target" apt-get -y update
-	chroot "${TARGETDIR}/.target" apt-get -y install screen linux-image-generic openssh-server \
+    [ -z "$LINUXIMAGE" ] && LINUXIMAGE=linux-image-generic
+	chroot "${TARGETDIR}/.target" apt-get -y install screen $LINUXIMAGE openssh-server \
 		rsync btrfs-progs openntpd ifupdown net-tools locales grub-pc os-prober
     chroot "${TARGETDIR}/.target" apt-get -y install grub-gfxpayload-lists
 	chroot "${TARGETDIR}/.target" apt-get -y dist-upgrade
