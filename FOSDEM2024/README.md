@@ -42,3 +42,6 @@ A [MicroPython script](./MicroPython/fulltest.py) on ESP32 receives this data, i
 
 ## 3D printed hexagons
 
+Hexagons with 100mm outer diameter were made with a 3D printer. To keep printing time shorter, the hexagons were made to fit to 80mm plastic tubing.
+The folder [3D_print](./3D_print) contains the CAD files and STL.
+See the [images](./images) on how the parts are assembled.
