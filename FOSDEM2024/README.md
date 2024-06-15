@@ -26,7 +26,7 @@ We initially wanted to build a receiver just out of a microcontroller and a LoRa
 
 ### Python to convert received data to Checkmk agent output
 
-A Python script was used to listen on the serial port the LoRa receiver was connected to.
+A [Python script](./Python/dumplora.py) was used to listen on the serial port the LoRa receiver was connected to.
 After every line it was checked whether this was a valid JSON object and then converted to Checkmk agent output in the format used for the [Watterott CO2 plugin for Checkmk](https://exchange.checkmk.com/p/watterott-co2-ampel).
 To use the data in the monitoring, it was sufficient to read the agent output file using a data source call:
 
@@ -34,9 +34,11 @@ To use the data in the monitoring, it was sufficient to read the agent output fi
 
 ### Python to query the Checkmk REST API
 
-
+Another [Python script](./Python/status2ws.py) is used to query the Checkmk REST API and then write to a serial interface which honeycomb should display which color.
 
 ### Micropython on ESP to switch WS2812
+
+A [MicroPython script](./MicroPython/fulltest.py) on ESP32 receives this data, interprets it and switches the WS2812 accordingly.
 
 ## 3D printed hexagons
 
