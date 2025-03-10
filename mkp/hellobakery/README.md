@@ -1,5 +1,11 @@
 # Hello bakery!
 
+> [!WARNING]
+> This example uses an API that was replaced in Checkmk 2.3.0 and will be completely disabled in Checkmk 2.4.0.
+> Use this example only to compare with the new examples as a porting aid.
+> The new examples have been moved to [the Checkmk docs repo](https://github.com/Checkmk/checkmk-docs/tree/master/examples/bakery_api).
+> Furthermore "Hello world" and "Hello bakery" have been merged again.
+
 This example extends the "Hello world!" example with bakery configuration
 to showcase how plugins can access the bakery API for easier distribution
 of agent checks and their configuration. 
