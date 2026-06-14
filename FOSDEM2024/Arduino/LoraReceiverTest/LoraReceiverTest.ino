@@ -1,5 +1,6 @@
 #include <SPI.h>
 #include <LoRa.h>
+#include <wdt_samd21.h>
 
 //---LoRa---
 #define LORA_NODENAME      "co2ampel4" //Wird mit den Messwerten übertragen
@@ -10,7 +11,8 @@
 #define LORA_BANDWIDTH     125E3 //Bandwidth in Hz
 
 void setup() {
-  
+  wdt_init(WDT_CONFIG_PER_8K);
+  wdt_reset();
   Serial.begin(9600);
   while (!Serial);
   LoRa.setPins(20, -1);
@@ -28,6 +30,7 @@ void setup() {
 }
 
 void loop() {
+  wdt_reset();
   // try to parse packet
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
