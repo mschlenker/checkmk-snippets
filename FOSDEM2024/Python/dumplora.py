@@ -5,6 +5,7 @@ import json
 import serial
 import sys
 import getopt
+from datetime import datetime, date, timezone
 
 co2 = 0
 temp = 0
@@ -25,24 +26,31 @@ for opt, arg in opts:
 ser = serial.Serial(port, 115200, timeout=3)
 
 while True:
-    data = ser.readline()
     j = json.loads("{}")
+    data = ser.readline()
     try:
         if data.decode('utf-8').strip() and json.loads(data.decode('utf-8').strip()):
-            print(data)
+            # print(str(datetime.now()) + " " + str(data))
+            # print(data)
             j = json.loads(data.decode('utf-8').strip())
+            print(str(datetime.now()) + " " + str(j))
             h = j['n']
-            outfile = "/tmp/" + h + ".txt"
+            outfile = "/tmp/" + h + ".json"
             o = open(outfile, "w")
-            o.write("<<<check_mk>>>\n")
-            o.write("Version: 2.0.0p1\n")
-            o.write("AgentOS: arduino\n")
-            o.write("Hostname: " + h + "\n")
-            o.write("<<<watterott_co2ampel_plugin>>>\n")
-            o.write("co2 " + str(j['c']) + "\n")
-            o.write("temp " + str(j['t']) + "\n")
-            o.write("humidity " + str(j['h']) + "\n")
-            o.write("lighting " + str(j['l']) + "\n")
+            o.write("<<<watterott_co2_special>>>\n")
+            o.write(json.dumps(j))
+            o.write("\n")
+            #outfile = "/tmp/" + h + ".txt"
+            #o = open(outfile, "w")
+            #o.write("<<<check_mk>>>\n")
+            #o.write("Version: 2.0.0p1\n")
+            #o.write("AgentOS: arduino\n")
+            #o.write("Hostname: " + h + "\n")
+            #o.write("<<<watterott_co2ampel_plugin>>>\n")
+            #o.write("co2 " + str(j['c']) + "\n")
+            #o.write("temp " + str(j['t']) + "\n")
+            #o.write("humidity " + str(j['h']) + "\n")
+            #o.write("lighting " + str(j['l']) + "\n")
             o.close()
     except:
         print("Ooops, malformed data!")
